@@ -6,18 +6,15 @@ import java.util.List;
  *
  */
 @SuppressWarnings({"unchecked"})
+/** scans for method's annotations */
 public class MethodAnnotationsScanner extends AbstractScanner {
     public static final String indexName = "MethodAnnotations";
 
     public void scan(final Object cls) {
-		String className = getMetadataAdapter().getClassName(cls);
-		List<Object> methods = getMetadataAdapter().getMethods(cls);
-		for (Object method : methods) {
-			String methodKey = getMetadataAdapter().getMethodKey(method);
-			List<String> methodAnnotations = getMetadataAdapter().getMethodAnnotationNames(method);
-			for (String methodAnnotation : methodAnnotations) {
-				if (accept(methodAnnotation)) {
-					populate(methodAnnotation, String.format("%s.%s", className, methodKey));
+        for (Object method : getMetadataAdapter().getMethods(cls)) {
+            for (String methodAnnotation : (List<String>) getMetadataAdapter().getMethodAnnotationNames(method)) {
+                if (accept(methodAnnotation)) {
+                    store.put(methodAnnotation, getMetadataAdapter().getMethodKey(cls, method));
                 }
             }
         }

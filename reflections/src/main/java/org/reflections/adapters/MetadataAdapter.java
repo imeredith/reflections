@@ -1,8 +1,8 @@
 package org.reflections.adapters;
 
-import java.net.URL;
-import java.util.Collection;
 import java.util.List;
+import java.io.InputStream;
+import java.io.IOException;
 
 /**
  *
@@ -15,8 +15,6 @@ public interface MetadataAdapter<C,F,M> {
     String getSuperclassName(final C cls);
 
     List<String> getInterfacesNames(final C cls);
-
-    Iterable<C> iterateClasses(final Collection<URL> urls);
 
     //
     List<F> getFields(final C cls);
@@ -39,5 +37,9 @@ public interface MetadataAdapter<C,F,M> {
 
     String getFieldName(final F field);
 
-    String getMethodKey(final M method);
+    C create(InputStream inputStream) throws IOException;
+
+    String getMethodModifier(M method);
+
+    String getMethodKey(C cls, M method);
 }

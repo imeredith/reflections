@@ -1,36 +1,52 @@
 package org.reflections;
 
 import com.google.common.base.Function;
-import com.google.common.base.Nullable;
 import com.google.common.base.Supplier;
-import com.google.common.collect.*;
+import com.google.common.collect.MapMaker;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.Multimaps;
+import com.google.common.collect.Sets;
 
+import javax.annotation.Nullable;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
-import java.util.Collection;
 
 /**
  *
  */
 public class Store {
 
-	private final Map<String/*indexName*/, Multimap<String, String>> store = new MapMaker().makeComputingMap(new Function<String, Multimap<String, String>>() {
+	final Map<String/*indexName*/, Multimap<String, String>> store = new MapMaker().makeComputingMap(new Function<String, Multimap<String, String>>() {
 		public Multimap<String, String> apply(@Nullable String indexName) {
 			return Multimaps.newSetMultimap(new MapMaker().<String, Collection<String>>makeMap(), new Supplier<Set<String>>() {
 				public Set<String> get() {
-					return Sets.newConcurrentHashSet();
+					return Sets.newHashSet();
 				}
 			});
 		}
 	});
 
-	public Multimap<String, String> get(String indexName) {
-		return store.get(indexName);
+    /** get all values of given keys from given indexName */
+	public Set<String> get(String indexName, String... keys) {
+        Set<String> result = Sets.newHashSet();
+
+        Multimap<String, String> map = store.get(indexName);
+        for (String key : keys) {
+            result.addAll(map.get(key));
+        }
+
+        return result;
 	}
 
+    Multimap<String, String> getStore(String indexName) {
+        return store.get(indexName);
+    }
+
+    /** merges given store into this */    
 	public void merge(final Store outer) {
 		for (String indexName : outer.store.keySet()) {
-			get(indexName).putAll(outer.get(indexName));
+			this.store.get(indexName).putAll(outer.store.get(indexName));
 		}
 	}
 }

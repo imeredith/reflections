@@ -1,10 +1,10 @@
 package org.reflections.scanners;
 
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
 import org.reflections.Configuration;
-import org.reflections.filters.Filter;
-import org.reflections.filters.Any;
 import org.reflections.adapters.MetadataAdapter;
 
 /**
@@ -14,13 +14,13 @@ import org.reflections.adapters.MetadataAdapter;
 public abstract class AbstractScanner implements Scanner {
 
 	private Configuration configuration;
-	private Multimap<String, String> store;
-	private Filter<String> filter = Any.ANY;
+	protected Multimap<String, String> store;
+	private Predicate<String> filter = Predicates.alwaysTrue();
 
-	public Scanner filterBy(Filter<String> filter) {
-		this.filter = filter;
-		return this;
-	}
+	public Scanner filterBy(Predicate<String> filter) {
+        this.filter = Predicates.or(this.filter, filter);
+        return this;
+    }
 
 	public void setConfiguration(final Configuration configuration) {
 		this.configuration = configuration;
@@ -34,15 +34,7 @@ public abstract class AbstractScanner implements Scanner {
 		return configuration.getMetadataAdapter();
 	}
 
-	protected void populate(final String key, final String value) {
-		multiRelaxAdd(store, key, value);
-	}
-
-	protected boolean accept(final String fqn) {
-		return fqn != null && filter.accept(fqn);
-	}
-
-	protected <T> void multiRelaxAdd(final Multimap<T, T> map, final T key, final T... values) {
-		map.putAll(key, ImmutableSet.of(values));
+    protected boolean accept(final String fqn) {
+		return fqn != null && filter.apply(fqn);
 	}
 }

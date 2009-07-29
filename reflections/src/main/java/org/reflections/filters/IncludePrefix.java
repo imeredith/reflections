@@ -10,7 +10,7 @@ public class IncludePrefix implements IncludeFilter<String> {
         this.prefix = prefix;
     }
 
-    public boolean accept(final String name) {
+    public boolean apply(final String name) {
         return name.startsWith(prefix);
     }
 }

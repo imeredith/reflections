@@ -19,7 +19,7 @@ public class MethodParametersAnnotationsScanner extends AbstractScanner {
                 List<String> parameterAnnotations = getMetadataAdapter().getParameterAnnotationNames(method, parameterIndex);
                 for (String parameterAnnotation : parameterAnnotations) {
                     if (accept(parameterAnnotation)) {
-                        populate(parameterAnnotation, String.format("%s.%s:%s %s", className, method, parameters.get(parameterIndex), parameterAnnotation));
+                        store.put(parameterAnnotation, String.format("%s.%s:%s %s", className, method, parameters.get(parameterIndex), parameterAnnotation));
                     }
                 }
             }

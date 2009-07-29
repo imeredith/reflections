@@ -1,8 +1,8 @@
 package org.reflections.scanners;
 
+import com.google.common.base.Predicate;
 import com.google.common.collect.Multimap;
 import org.reflections.Configuration;
-import org.reflections.filters.Filter;
 
 /**
  *
@@ -17,5 +17,5 @@ public interface Scanner {
 
 	String getIndexName();
 
-	Scanner filterBy(Filter<String> filter);
+	Scanner filterBy(Predicate<String> filter);
 }

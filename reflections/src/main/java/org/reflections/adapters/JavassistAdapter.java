@@ -1,35 +1,24 @@
 package org.reflections.adapters;
 
+import static javassist.bytecode.AccessFlag.*;
 import javassist.bytecode.*;
 import javassist.bytecode.annotation.Annotation;
-import org.reflections.filters.Filter;
-import org.reflections.util.DescriptorHelper;
-import org.reflections.util.FluentIterable;
-import org.reflections.util.Transformer;
-import org.reflections.util.VirtualFile;
-import static org.reflections.util.VirtualFile.urls2VirtualFiles;
 import org.reflections.ReflectionsException;
-import org.slf4j.LoggerFactory;
-import org.slf4j.Logger;
+import org.reflections.util.DescriptorHelper;
+import org.reflections.util.Utils;
 
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URL;
-import java.util.*;
-import java.util.regex.Pattern;
-import java.util.regex.Matcher;
-
-import com.google.common.collect.AbstractIterator;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  *
  */
 public class JavassistAdapter implements MetadataAdapter<ClassFile, FieldInfo, MethodInfo> {
-	private static final Logger log = LoggerFactory.getLogger(JavassistAdapter.class);
-	private static final Pattern METHOD_PARAMS_PATTERN = Pattern.compile(".*\\((.*)\\).*");
-
     public List<FieldInfo> getFields(final ClassFile cls) {
         //noinspection unchecked
         return cls.getFields();
@@ -85,19 +74,38 @@ public class JavassistAdapter implements MetadataAdapter<ClassFile, FieldInfo, M
         return field.getName();
     }
 
-    public String getMethodKey(final MethodInfo method) {
-        String descriptor = method.getDescriptor();
-		Matcher matcher = METHOD_PARAMS_PATTERN.matcher(descriptor);
-		if (!matcher.matches()) {
-			throw new ReflectionsException("The regex pattern s probably wrong.");
-		}
-		String paramDescriptor = matcher.group(1);
+    public ClassFile create(InputStream inputStream) throws IOException {
+        DataInputStream dis = null;
+        try {
+            dis = new DataInputStream(new BufferedInputStream(inputStream));
+            return new ClassFile(dis);
+        } finally {
+            if (dis != null) {
+                try {
+                    dis.close();
+                } catch (IOException e) {
+                    //noinspection ThrowFromFinallyBlock
+                    throw new ReflectionsException("could not close DataInputStream", e);
+                }
+            }
+        }
+    }
 
-		return String.format("%s %s", getMethodName(method), paramDescriptor);
+    public String getMethodModifier(MethodInfo method) {
+        int accessFlags = method.getAccessFlags();
+        return isPrivate(accessFlags) ? "private" :
+               isProtected(accessFlags) ? "protected" :
+               isPublic(accessFlags) ? "public" : "";
+    }
+
+    public String getMethodKey(ClassFile cls, MethodInfo method) {
+        List<String> parameterNames = getParameterNames(method);
+        String names = Utils.join(parameterNames, ", ");
+        return String.format("%s %s %s.%s(%s)", getMethodModifier(method), getReturnTypeName(method), getClassName(cls),
+                getMethodName(method), names);
     }
 
     //
-
     public String getClassName(final ClassFile cls) {
         return cls.getName();
     }
@@ -108,56 +116,6 @@ public class JavassistAdapter implements MetadataAdapter<ClassFile, FieldInfo, M
 
     public List<String> getInterfacesNames(final ClassFile cls) {
         return Arrays.asList(cls.getInterfaces());
-    }
-
-	    public Iterator<ClassFile> iterateClasses(final Collection<URL> urls, final Filter<String> filter) {
-        return new AbstractIterator<ClassFile>() {
-            private Iterator<URL> urlsIterator = urls.iterator();
-            private Iterator<VirtualFile> virtualFileIterator = new FluentIterable.EmptyIterator<VirtualFile>();
-
-            @SuppressWarnings({"ThrowFromFinallyBlock"})
-            protected ClassFile computeNext() {
-                while (true) {
-                    if (!virtualFileIterator.hasNext()) {
-                        if (!urlsIterator.hasNext()) {
-                            return endOfData();
-                        } else {
-                            URL url = urlsIterator.next();
-                            virtualFileIterator = VirtualFile.iterable(url).iterator();
-                        }
-                    } else {
-                        VirtualFile virtualFile = virtualFileIterator.next();
-                        InputStream inputStream = virtualFile.getInputStream();
-                        BufferedInputStream bis = null;
-                        try {
-                            bis = new BufferedInputStream(inputStream);
-                            DataInputStream dis = new DataInputStream(bis);
-                            ClassFile classFile = new ClassFile(dis);
-                            String className = getClassName(classFile);
-                            if (filter.accept(className)) {
-                                return classFile;
-                            }
-                        }
-                        catch (IOException e) {
-                            // need to filter directories and none class files
-                        }
-                        finally {
-                            if (bis!=null) {
-                                try {bis.close();} catch (IOException e) {throw new RuntimeException(e);}
-                            }
-                        }
-                    }
-                }
-            }
-        };
-    }
-
-    public Iterable<ClassFile> iterateClasses(final Collection<URL> urls) {
-        return FluentIterable
-                .iterate(urls)
-                .fork(urls2VirtualFiles)
-                .filter(classesOnly)
-                .transform(virtualFile2ClassFile);
     }
 
     //
@@ -177,30 +135,4 @@ public class JavassistAdapter implements MetadataAdapter<ClassFile, FieldInfo, M
 
         return result;
     }
-
-    //
-    //filter only VirtualFiles that are .class files
-	private static final Filter<VirtualFile> classesOnly = new Filter<VirtualFile>() {
-        public boolean accept(final VirtualFile virtualFile) {
-            return virtualFile.getName().endsWith(".class");
-        }
-    };
-
-    //transform VirtualFile to ClassFile
-	private static final Transformer<VirtualFile, ClassFile> virtualFile2ClassFile = new Transformer<VirtualFile, ClassFile>() {
-        public ClassFile transform(final VirtualFile virtualFile) {
-            BufferedInputStream bis = null;
-			try {
-				return new ClassFile(new DataInputStream(bis = new BufferedInputStream(virtualFile.getInputStream())));
-            }
-            catch (IOException e) {
-                log.warn(String.format("ignoring IOException while scanning %s", virtualFile.getName()));
-                return null;
-            }
-            finally {
-                if (bis != null) {try {bis.close();} catch (IOException e) {throw new ReflectionsException("Can't transform a virtual file to a class file.", e);}}
-            }
-        }
-    };
-
 }

@@ -1,29 +1,34 @@
 package org.reflections;
 
+import com.google.common.base.Predicate;
 import org.reflections.adapters.MetadataAdapter;
 import org.reflections.scanners.Scanner;
-import org.reflections.filters.Filter;
 
 import java.net.URL;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 /**
- *
+ * Configuration is used to create a configured instance of {@link Reflections}
+ * <p>it is prefered to use {@link org.reflections.util.AbstractConfiguration}
  */
 @SuppressWarnings({"RawUseOfParameterizedType"})
 public interface Configuration {
-    List<Scanner> getScanners();
-    void setScanners(Scanner ... scanners);
+    /** the scanner instances used for scanning different metadata */
+    Set<Scanner> getScanners();
 
-    /**
-     * urls to be scanned. use ClasspathHelper convenient methods
-     */
-    void setUrls(Collection<URL> urls);
-    Collection<URL> getUrls();
+    /** the urls to scan
+     * <p>use {@link org.reflections.util.ClasspathHelper} convenient methods to get the relevant urls
+     * */
+    Set<URL> getUrls();
 
+    /** */
     MetadataAdapter getMetadataAdapter();
-    void setMetadataAdapter(MetadataAdapter metadataAdapter);
 
-	void applyUniversalFilter(Filter<String> filter);
+    /** the fully qualified name filter used to filter types to be scanned */
+    Predicate<String> getFilter();
+
+    /** should or should not use fj (jsr166y) for parallely scanning types */
+    boolean shouldUseForkjoin();
 }

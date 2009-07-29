@@ -1,40 +1,43 @@
 package org.reflections.util;
 
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
+import com.google.common.collect.ImmutableSet;
 import org.reflections.Configuration;
 import org.reflections.adapters.JavassistAdapter;
 import org.reflections.adapters.MetadataAdapter;
-import org.reflections.filters.Filter;
 import org.reflections.scanners.Scanner;
 
 import java.net.URL;
 import java.util.Collection;
-import java.util.List;
-
-import com.google.common.collect.ImmutableList;
+import java.util.Set;
 
 /**
- *
+ * an abstract implementation of {@link org.reflections.Configuration}
+ * <p>uses reasonalbe defaults, such as {@link #useForkjoin}=true, {@link #filter}=accept all
  */
 @SuppressWarnings({"RawUseOfParameterizedType"})
 public class AbstractConfiguration implements Configuration {
-    private List<Scanner> scanners;
-    private Collection<URL> urls;
+    private Set<Scanner> scanners;
+    private Set<URL> urls;
     private MetadataAdapter metadataAdapter = new JavassistAdapter();
+    private Predicate<String> filter = Predicates.alwaysTrue();
+    private boolean useForkjoin = true;
 
-    public List<Scanner> getScanners() {
+    public Set<Scanner> getScanners() {
 		return scanners;
 	}
 
     public void setScanners(final Scanner... scanners) {
-        this.scanners = ImmutableList.of(scanners);
+        this.scanners = ImmutableSet.of(scanners);
     }
 
-    public Collection<URL> getUrls() {
+    public Set<URL> getUrls() {
         return urls;
     }
 
     public void setUrls(final Collection<URL> urls) {
-		this.urls = ImmutableList.copyOf(urls);
+		this.urls = ImmutableSet.copyOf(urls);
 	}
 
     public MetadataAdapter getMetadataAdapter() {
@@ -45,9 +48,19 @@ public class AbstractConfiguration implements Configuration {
         this.metadataAdapter = metadataAdapter;
     }
 
-	public void applyUniversalFilter(Filter<String> filter) {
-		for (Scanner scanner : scanners) {
-			scanner.filterBy(filter);
-		}
-	}
+    public Predicate<String> getFilter() {
+        return filter;
+    }
+
+    public void setFilter(Predicate<String> qNameFilter) {
+        this.filter = qNameFilter;
+    }
+
+    public boolean shouldUseForkjoin() {
+        return useForkjoin;
+    }
+
+    public void useForkjoin(boolean useForkjoin) {
+        this.useForkjoin = useForkjoin;
+    }
 }

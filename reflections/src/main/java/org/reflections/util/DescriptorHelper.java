@@ -1,84 +1,69 @@
 package org.reflections.util;
 
-import static org.reflections.util.ReflectionUtil.resolveClass;
+import org.reflections.ReflectionsException;
 
-import java.util.List;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
+import java.lang.reflect.Method;
+import java.lang.reflect.InvocationTargetException;
 
-/**
- *
- */
+/** convenient methods for translating to/from type descriptors */
 public class DescriptorHelper {
-    /**
-     * I[Ljava.lang.String; -> I, [Ljava.lang.String;
-     */
+
+    /** I[Ljava.lang.String; -> int, java.lang.String[] */
     public static List<String> splitDescriptor(final String descriptor) {
         List<String> result = new ArrayList<String>();
 
-        int i1 = 0;
-        while (i1 < descriptor.length()) {
-            int i2 = i1;
-            while (descriptor.charAt(i2) == '[') {
-                i2++;
-            }
-            char rawType = descriptor.charAt(i2++);
+        int cursor = 0;
+        while (cursor < descriptor.length()) {
+            int start = cursor;
+            while (descriptor.charAt(cursor) == '[') {cursor ++;}
+            char rawType = descriptor.charAt(cursor);
             if (rawType == 'L') {
-                i2 = descriptor.indexOf(";", i2) + 1;
+                cursor = descriptor.indexOf(";", cursor);
             }
+            cursor++;
 
-            String type = descriptor.substring(i1, i2);
-
-            result.add(type);
-
-            i1 = i2;
+            result.add(descriptorToTypeName(descriptor.substring(start, cursor)));
         }
 
         return result;
     }
 
-    /**
-     * I[Ljava.lang.String; -> int, java.lang.String[]
-     */
-    public static List<Class<?>> descriptorToTypes(final String descriptor) {
-        List<Class<?>> result = new ArrayList<Class<?>>();
+    /** I -> int; [Ljava.lang.String; -> java.lang.String[] */
+    public static String descriptorToTypeName(final String element) {
+        int start = element.lastIndexOf("[") + 1;
+        char rawType = element.charAt(start);
 
-        List<String> typeNames = splitDescriptor(descriptor);
-
-        for (String type : typeNames) {
-            Class<?> aClass = typeNameToType(type);
-
-            result.add(aClass);
+        String name;
+        switch (rawType) {
+            case 'L':
+                name = element.substring(start + 1, element.indexOf(';')).replace("/", ".");
+                break;
+            default:
+                name = primitiveToTypeName(rawType);
+                break;
         }
 
-        return result;
+        return name + Utils.repeat("[]", start);
+    }
+    /** int -> I; java.lang.Object -> java.lang.Object; java.lang.String[] -> [Ljava.lang.String; */
+    public static String typeNameToDescriptor(String typeName) {
+        if (!typeName.contains("[")) {
+            return typeName;
+        } else {
+        String s = typeName.replaceAll("]", "");
+            int i = typeName.indexOf('[');
+            String arr = s.substring(s.indexOf('['));
+            String s1 = typeName.substring(0, i);
+            return arr + 'L' + s1 + ';';
+        }
     }
 
     /**
-     * I -> Integer.TYPE ; [Ljava.lang.String; -> java.lang.String[]
-     */
-    public static Class<?> typeNameToType(final String type) {
-        Class<?> aClass;
-
-        if (type.startsWith("[")) {
-            //array
-            String type1 = type.replace("/","."); //still might be an object
-			aClass = resolveClass(type1);
-		} else {
-            if (type.startsWith("L")) {
-                //non array object
-                String type1 = type.substring(1,type.indexOf(";")).replace("/",".");
-				aClass  = resolveClass(type1);
-			} else {
-                //primitive type
-                aClass = simplePrimitiveToType(type.charAt(0));
-            }
-        }
-
-        return aClass;
-    }
-
-    /**
-     * method (I[Ljava.lang.String;)Ljava.lang.Object; -> I, [Ljava.lang.String;
+     * method (I[Ljava.lang.String;)Ljava.lang.Object; -> int, java.lang.String[]
      */
     public static List<String> methodDescriptorToParameterNameList(final String descriptor) {
         return splitDescriptor(
@@ -86,7 +71,7 @@ public class DescriptorHelper {
     }
 
     /**
-     * method (I[Ljava.lang.String;)Ljava.lang.Object; -> Ljava.lang.Object;
+     * method (I[Ljava.lang.String;)Ljava.lang.Object; -> java.lang.Object
      */
     public static String methodDescriptorToReturnTypeName(final String descriptor) {
         return splitDescriptor(
@@ -95,19 +80,23 @@ public class DescriptorHelper {
     }
 
     /**
-     * I -> Integer.TYPE ; V -> Void.TYPE
+     * I -> java.lang.Integer; V -> java.lang.Void
      */
-    public static Class<?> simplePrimitiveToType(char rawType) {
-        return 'Z' == rawType ? Boolean.TYPE :
-               'C' == rawType ? Character.TYPE :
-               'B' == rawType ? Byte.TYPE :
-               'S' == rawType ? Short.TYPE :
-               'I' == rawType ? Integer.TYPE :
-               'J' == rawType ? Long.TYPE :
-               'F' == rawType ? Float.TYPE :
-               'D' == rawType ? Double.TYPE :
-               'V' == rawType ? Void.TYPE :
-               /*error*/      null;
+    public static String primitiveToTypeName(final char rawType) {
+        return primitiveToType(rawType).getName();
+    }
+
+    private static Class<?> primitiveToType(char rawType) {
+        return  'Z' == rawType ? Boolean.TYPE :
+                'C' == rawType ? Character.TYPE :
+                'B' == rawType ? Byte.TYPE :
+                'S' == rawType ? Short.TYPE :
+                'I' == rawType ? Integer.TYPE :
+                'J' == rawType ? Long.TYPE :
+                'F' == rawType ? Float.TYPE :
+                'D' == rawType ? Double.TYPE :
+                'V' == rawType ? Void.TYPE :
+                /*error*/      null;
     }
 
     /**
@@ -120,8 +109,38 @@ public class DescriptorHelper {
     /**
      * java.lang.String -> java/lang/String
      */
-    public static String qNameToResourceName(String qName) {
+    public static String qNameToResourceName(final String qName) {
         return qName.replace(".", "/");
     }
 
+    /**
+     * tries to resolve the given type name to a java type
+     * accepted types are except for ordinary java object (java.lang.String) are primitives (int, boolean, ...) and array types (java.lang.String[][])
+     */
+    public static Class<?> resolveType(String typeName) {
+        if (primitives.containsKey(typeName)) {
+            return primitives.get(typeName);
+        }
+
+        try {
+            String descriptor = typeNameToDescriptor(typeName);
+            return Class.forName(descriptor);
+        } catch (ClassNotFoundException e) {
+            throw new ReflectionsException("could not resolve type " + typeName, e);
+        }
+    }
+
+    //
+    static Map<String, Class<?>> primitives; static {
+        primitives = new HashMap<String, Class<?>>();
+        primitives.put("boolean", Boolean.TYPE);
+        primitives.put("char", Character.TYPE);
+        primitives.put("byte", Byte.TYPE);
+        primitives.put("short", Short.TYPE);
+        primitives.put("int", Integer.TYPE);
+        primitives.put("long", Long.TYPE);
+        primitives.put("float", Float.TYPE);
+        primitives.put("double", Double.TYPE);
+        primitives.put("void", Void.TYPE);
+    }
 }

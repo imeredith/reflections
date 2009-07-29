@@ -9,12 +9,12 @@ import org.jfrog.maven.annomojo.annotations.MojoParameter;
 import org.jfrog.maven.annomojo.annotations.MojoPhase;
 import org.reflections.Reflections;
 import org.reflections.adapters.JavassistAdapter;
-import org.reflections.filters.*;
+import org.reflections.filters.IncludeExcludeChain;
 import org.reflections.scanners.ClassAnnotationsScanner;
 import org.reflections.scanners.Scanner;
 import org.reflections.scanners.SubTypesScanner;
 import org.reflections.util.AbstractConfiguration;
-import org.reflections.util.ReflectionUtil;
+import org.reflections.util.DescriptorHelper;
 
 import java.io.File;
 import java.net.MalformedURLException;
@@ -36,14 +36,15 @@ public class ReflectionsMojo extends MvnInjectableMojoSupport {
             , defaultValue = "-java., -javax., -sun., -com.sun.")
     private String includeExclude;
 
-    @MojoParameter(description = "a comma separated list of destinations to save metadata to"
+    @MojoParameter(description = "a comma separated list of destinations to save metadata to" +
+            "<p>defaults to ${project.build.outputDirectory}/META-INF/reflections/${project.artifactId}-reflections.xml"
             , defaultValue = "${project.build.outputDirectory}/META-INF/reflections/${project.artifactId}-reflections.xml")
     private String destinations;
 
     public void execute() throws MojoExecutionException, MojoFailureException {
         //
         if (StringUtils.isEmpty(destinations)) {
-            getLog().error("Reflections plugin is skipping because it should have been configured with a non empty destinations parameter");
+            getLog().error("Reflections plugin is skipping because it should have been configured with parse non empty destinations parameter");
             return;
         }
 
@@ -60,42 +61,12 @@ public class ReflectionsMojo extends MvnInjectableMojoSupport {
                         setUrls(Arrays.asList(parseOutputDirUrl()));
 						setScanners(parseScanners());
                         setMetadataAdapter(new JavassistAdapter());
-						applyUniversalFilter(parseFilters());
+                        setFilter(IncludeExcludeChain.parse(includeExclude));
                     }
                 });
 
         for (String destination : parseDestinations()) {
             reflections.save(destination.trim());
-        }
-    }
-
-    private Filter<String> parseFilters() throws MojoExecutionException {
-        List<IncludeExcludeFilter<String>> filters = new ArrayList<IncludeExcludeFilter<String>>();
-
-        if (StringUtils.isNotEmpty(includeExclude)) {
-            for (String string : includeExclude.split(",")) {
-                String trimmed = string.trim();
-                char prefix = trimmed.charAt(0);
-                String pattern = trimmed.substring(1);
-
-                IncludeExcludeFilter<String> filter;
-                switch (prefix) {
-                    case '+':
-                        filter = new IncludePrefix(pattern);
-                        break;
-                    case '-':
-                        filter = new ExcludePrefix(pattern);
-                        break;
-                    default:
-                        throw new MojoExecutionException("includeExclude should start with either + or -");
-                }
-
-                filters.add(filter);
-            }
-
-            return new IncludeExcludeChain<String>(filters);
-        } else {
-            return new Any<String>();
         }
     }
 
@@ -108,7 +79,7 @@ public class ReflectionsMojo extends MvnInjectableMojoSupport {
                 String trimmed = scannerClass.trim();
                 String className = String.format("org.reflections.scanners.%sScanner", trimmed);
                 try {
-                    Scanner scanner = (Scanner) ReflectionUtil.resolveClass(className).newInstance();
+                    Scanner scanner = (Scanner) DescriptorHelper.resolveType(className).newInstance();
                     scannersSet.add(scanner);
                 } catch (Exception e) {
                     throw new MojoExecutionException(String.format("could not find scanner %s [%s]",trimmed,scannerClass), e);

@@ -6,22 +6,22 @@ import java.util.List;
  *
  */
 @SuppressWarnings({"unchecked"})
+/** scans for superclass and interfaces of a class, allowing a reverse lookup for subtypes */
 public class SubTypesScanner extends AbstractScanner {
     public static final String indexName = "SubTypes";
 
     public void scan(final Object cls) {
-
 		String className = getMetadataAdapter().getClassName(cls);
 		String superclass = getMetadataAdapter().getSuperclassName(cls);
 		List<String> interfaces = getMetadataAdapter().getInterfacesNames(cls);
 
-		if (accept(superclass)) {
-			populate(superclass, className);
-		}
+		if (!superclass.equals(Object.class.getName()) && accept(superclass)) {
+            store.put(superclass, className);
+        }
 
 		for (String anInterface : interfaces) {
 			if (accept(anInterface)) {
-				populate(anInterface, className);
+                store.put(anInterface, className);
             }
         }
     }

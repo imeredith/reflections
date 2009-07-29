@@ -1,20 +1,20 @@
 package org.reflections.util;
 
-import com.google.common.collect.Sets;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
-import org.reflections.filters.Filter;
+import com.google.common.base.Predicate;
+import org.apache.commons.vfs.*;
+import org.apache.commons.vfs.impl.DefaultFileSystemManager;
 import org.reflections.ReflectionsException;
+import static org.reflections.util.DescriptorHelper.classNameToResourceName;
+import static org.reflections.util.DescriptorHelper.qNameToResourceName;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Collection;
-import java.util.Enumeration;
-import java.util.Set;
 import java.util.List;
 
-@SuppressWarnings({"AbstractClassWithoutAbstractMethods"})
 /**
  * Some classpath convenient methods
  */
@@ -22,18 +22,32 @@ public abstract class ClasspathHelper {
 
     /**
      * urls in current classpath from System property java.class.path
+     * optional patterns are used to filter url names that contains either pattern
+     *
+     * for example: getUrlsForCurrentClasspath("client/")
      */
-    public static Collection<URL> getUrlsForCurrentClasspath() {
+    public static Collection<URL> getUrlsForCurrentClasspath(String... patterns) {
         List<URL> urls = Lists.newArrayList();
 
         String javaClassPath = System.getProperty("java.class.path");
+        FileSystemManager vfsManager = Utils.getVFSManager();
+
         if (javaClassPath != null) {
             for (String path : javaClassPath.split(File.pathSeparator)) {
                 try {
-                    URL url = new File(path).toURI().toURL();
-                    urls.add(normalize(url));
-                } catch (MalformedURLException e) {
-                    throw new ReflectionsException("Can't resolve URLs for current classpath.", e);
+                    URL url = vfsManager.resolveFile(path).getURL();
+                    if (patterns != null) {
+                        for (String pattern : patterns) {
+                            if (url.toExternalForm().contains(pattern)) {
+                                urls.add(url);
+                                break; //only once
+                            }
+                        }
+                    } else {
+                        urls.add(url);
+                    }
+                } catch (FileSystemException e) {
+                    throw new ReflectionsException("could not create url from " + path, e);
                 }
             }
         }
@@ -48,9 +62,12 @@ public abstract class ClasspathHelper {
         List<URL> urls = Lists.newArrayList();
 
         for (URL url : getUrlsForCurrentClasspath()) {
-            File file = new File(url.getFile());
-            if (file.isDirectory()) {
-                urls.add(url);
+            try {
+                if (Utils.getVFSManager().resolveFile(url.getPath()).getType().equals(FileType.FOLDER)) {
+                    urls.add(url);
+                }
+            } catch (FileSystemException e) {
+                throw new ReflectionsException("could not resolve url " + url, e);
             }
         }
         return urls;
@@ -60,22 +77,8 @@ public abstract class ClasspathHelper {
      * the url that contains the given class.
      */
     public static URL getUrlForClass(Class<?> aClass) {
-        String className = aClass.getName();
-
-        URL result;
-        try {
-            final ClassLoader loader = Utils.getEffectiveClassLoader();
-            URL classUrl = loader.getResource(DescriptorHelper.classNameToResourceName(className));
-            final String resourceName = DescriptorHelper.classNameToResourceName(className);
-
-            final String classUrlString = classUrl.toString();
-            String baseUrlName = classUrlString.substring(0, classUrlString.indexOf(resourceName));
-
-            result = normalize(new URL(baseUrlName));
-        } catch (Exception e) {
-            throw new ReflectionsException("Can't resolve URL for class " + className, e);
-        }
-        return result;
+        return Utils.getEffectiveClassLoader().getResource(
+                qNameToResourceName(aClass.getPackage().getName()));
     }
 
     /**
@@ -83,66 +86,47 @@ public abstract class ClasspathHelper {
      * the equivalent directory within the urls of current classpath
      */
     public static Collection<URL> getUrlsForPackagePrefix(String packagePrefix) {
-        final List<URL> urls = Lists.newArrayList();
-        String packageResourcePrefix = DescriptorHelper.qNameToResourceName(packagePrefix);
         try {
-            final Enumeration<URL> urlEnumeration = Utils.getEffectiveClassLoader().getResources(packageResourcePrefix);
-            while (urlEnumeration.hasMoreElements()) {
-                URL url = urlEnumeration.nextElement();
-                urls.add(normalize(url));
-            }
-
-            return urls;
+            return Lists.newArrayList(Iterators.forEnumeration(
+                    Utils.getEffectiveClassLoader().getResources(
+                            qNameToResourceName(packagePrefix))));
         } catch (IOException e) {
             throw new ReflectionsException("Can't resolve URL for package prefix " + packagePrefix, e);
         }
     }
 
-    /**
-     * searches for resources accepted by the given resourceNameFilter within the given urls.
-     * each url is assumed to contain only one such file at most.
-     *
-     * the urls provided might be the full classpath (getUrlsForCurrentClasspath), but it is better
-     * to provide a narrowed list of urls using getUrlsForPackagePrefix
-     */
-    public static Set<String> getMatchingJarResources(final Collection<URL> urls, final Filter<String> resourceNameFilter) {
-        final Set<String> matchingJarResources = Sets.newHashSet();
+    /** finds all FileObjects in current class path starting with given packagePrefix and matching resourceNameFilter */
+    public static List<FileObject> findFileObjects(final String packagePrefix, final Predicate<String> resourceNameFilter) {
+        FileSelector fileSelector = new FileSelector() {
+            public boolean includeFile(FileSelectInfo fileInfo) throws Exception {
+                String path = fileInfo.getFile().getURL().toExternalForm();
+                String filename = path.substring(path.indexOf(packagePrefix) + packagePrefix.length());
 
-        for (URL url : urls) {
-            for (VirtualFile virtualFile : VirtualFile.iterable(url)) {
-                String resourceName = virtualFile.getName();
-
-                if (resourceNameFilter.accept(resourceName)) {
-                    matchingJarResources.add(resourceName);
-                    break; //only one
+                if (!filename.isEmpty()) { 
+                    return resourceNameFilter.apply(filename.substring(1));
+                } else {
+                    return false;
                 }
             }
+
+            public boolean traverseDescendents(FileSelectInfo fileInfo) throws Exception {
+                return true;
+            }
+        };
+
+        List<FileObject> fileObjects;
+        try {
+            fileObjects = Lists.newArrayList();
+
+            for (URL url : getUrlsForPackagePrefix(packagePrefix)) {
+                FileObject[] files = Utils.getVFSManager().resolveFile(url.getPath()).findFiles(fileSelector);
+                fileObjects.addAll(Lists.newArrayList(files));
+            }
+        } catch (FileSystemException e) {
+            throw new ReflectionsException("could not collect", e);
         }
 
-        return matchingJarResources;
+        return fileObjects;
     }
-
-    //todo: this is only partial, probably
-    public static URL normalize(URL url) throws MalformedURLException {
-        String spec = url.getFile();
-
-        //get url base - remove everything after ".jar!/??" , if exists
-        final int i = spec.indexOf("!/");
-        if (i != -1) {
-            spec = spec.substring(0, spec.indexOf("!/"));
-        }
-
-        //uppercase windows drive
-        url = new URL(url, spec);
-        final String file = url.getFile();
-        final int i1 = file.indexOf(':');
-        if (i1 != -1) {
-            String drive = file.substring(i1 - 1, 2).toUpperCase();
-            url = new URL(url, file.substring(0, i1 - 1) + drive + file.substring(i1));
-        }
-
-        return url;
-    }
-
 }
 

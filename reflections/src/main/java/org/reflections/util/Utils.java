@@ -1,41 +1,72 @@
 package org.reflections.util;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
+import org.apache.commons.vfs.VFS;
+import org.apache.commons.vfs.FileSystemException;
+import org.apache.commons.vfs.FileSystemManager;
+import org.reflections.ReflectionsException;
+
+import java.util.*;
 
 /**
- *
+ * a garbage can of convenient methods
  */
 public abstract class Utils {
+    public static final String LINE_SEPARATOR = System.getProperty("line.separator");
 
-    public static <T> Set<Class<? extends T>> forNames(final Collection<String> classes) {
-        Set<Class<? extends T>> result = new HashSet<Class<? extends T>>(classes.size());
+    /** try to resolves all given string representation of types to a list of java types */
+    public static <T> List<Class<? extends T>> forNames(final Iterable<String> classes) {
+        List<Class<? extends T>> result = new ArrayList<Class<? extends T>>();
         for (String className : classes) {
-			result.add((Class<? extends T>) ReflectionUtil.resolveClass(className));
-		}
+            //noinspection unchecked
+            result.add((Class<? extends T>) DescriptorHelper.resolveType(className));
+        }
         return result;
     }
 
-    public static void safeWriteFile(String fileContent, File destFile) throws IOException {
-        FileWriter writer = null;
-        try {
-            if (destFile.getParentFile() != null) {destFile.getParentFile().mkdirs();}
-
-            writer = new FileWriter(destFile);
-            writer.write(fileContent);
-        } finally {
-            try {
-                //noinspection ConstantConditions
-                writer.close();
-            } catch (Exception e) {/*fuck off*/}
+    public static <T> List<Class<? extends T>> forNames(final String... classes) {
+        List<Class<? extends T>> result = new ArrayList<Class<? extends T>>(classes.length);
+        for (String className : classes) {
+            //noinspection unchecked
+            result.add((Class<? extends T>) DescriptorHelper.resolveType(className));
         }
+        return result;
     }
 
     public static ClassLoader getEffectiveClassLoader() {
         return Thread.currentThread().getContextClassLoader();
+    }
+
+
+    public static String join(Collection<String> strings, String sep) {
+        if (strings.isEmpty()) {
+            return "";
+        }
+
+        StringBuilder sb = new StringBuilder();
+
+        for (String parameterName : strings) {
+            sb.append(parameterName).append(sep);
+        }
+
+        String names = sb.substring(0, sb.length() - sep.length());
+        return names;
+    }
+
+    public static String repeat(String string ,int times) {
+        StringBuilder sb = new StringBuilder();
+
+        for (int i = 0; i < times; i++) {
+            sb.append(string);
+        }
+
+        return sb.toString();
+    }
+
+    public static FileSystemManager getVFSManager() {
+        try {
+            return VFS.getManager();
+        } catch (FileSystemException e) {
+            throw new ReflectionsException("could not get VFS Manager", e);
+        }
     }
 }
