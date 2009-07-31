@@ -171,12 +171,10 @@ public class Reflections {
             values += multimap.size();
         }
 
-        //noinspection ConstantConditions
-        log.info(format("Reflections took %d ms to scan %d urls%s, producing %d keys and %d values [%d ms per value]",
-                time, configuration.getUrls().size(),
-                configuration.shouldUseForkjoin() ? " [using " + forkJoinPool.getParallelismLevel() + " cores]" : "",
-                keys, values, time / values
-        ));
+        log.info(format("Reflections took %d ms to scan %d urls, producing %d keys and %d values%s%s",
+                time, configuration.getUrls().size(), keys, values,
+                forkJoinPool != null ? format(" [using %d cores]", forkJoinPool.getParallelismLevel()) : "",
+                values != 0 ? format(" [%d ms per value]", time / values) : ""));
     }
 
     /**

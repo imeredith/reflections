@@ -70,26 +70,4 @@
             <version>1.0</version>
         </dependency>
     </dependencies>
-
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.reflections</groupId>
-                <artifactId>reflections-maven</artifactId>
-                <version>0.9.4-SNAPSHOT</version>
-                <configuration>
-                    <destinations>${project.build.testOutputDirectory}/META-INF/reflections/mojo-generated-reflections.xml</destinations>
-                </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>reflections</goal>
-                        </goals>
-                        <phase>process-classes</phase>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
-    </build>
-    
 </project>
