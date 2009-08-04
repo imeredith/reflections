@@ -1,5 +1,6 @@
 package org.reflections;
 
+import com.google.common.base.Predicate;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
@@ -8,8 +9,7 @@ import static org.junit.Assert.fail;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import static org.reflections.TestModel.*;
-import org.reflections.filters.IncludeExcludeChain;
-import org.reflections.filters.IncludePrefix;
+import org.reflections.util.FilterBuilder;
 import org.reflections.scanners.*;
 import org.reflections.util.AbstractConfiguration;
 import org.reflections.util.ClasspathHelper;
@@ -34,7 +34,7 @@ public class ReflectionsTest {
     private static class TestConfiguration extends AbstractConfiguration {
         {
             useForkjoin(true);
-            IncludeExcludeChain<String> filter = new IncludeExcludeChain<String>(new IncludePrefix(TestModel.class.getName()));
+            Predicate<String> filter = new FilterBuilder().include(TestModel.class.getName());
             setScanners(
                     new SubTypesScanner().filterBy(filter),
                     new ClassAnnotationsScanner().filterBy(filter),
@@ -81,6 +81,7 @@ public class ReflectionsTest {
             public Class<? extends Annotation> annotationType() {return AC2.class;}};
 
         assertThat(reflections.getTypesAnnotatedWithInherited(ac2), isEmpty);
+
         assertThat("non @Inherited meta-annotation is effective on subtypes of interfaces and supertypes",
                 reflections.getTypesAnnotatedWith(ac2), are(I3.class, C6.class, C3.class, C5.class));
     }

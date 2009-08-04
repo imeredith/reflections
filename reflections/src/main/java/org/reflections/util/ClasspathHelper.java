@@ -1,12 +1,10 @@
 package org.reflections.util;
 
+import com.google.common.base.Predicate;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
-import com.google.common.base.Predicate;
 import org.apache.commons.vfs.*;
-import org.apache.commons.vfs.impl.DefaultFileSystemManager;
 import org.reflections.ReflectionsException;
-import static org.reflections.util.DescriptorHelper.classNameToResourceName;
 import static org.reflections.util.DescriptorHelper.qNameToResourceName;
 
 import java.io.File;
@@ -17,6 +15,7 @@ import java.util.List;
 
 /**
  * Some classpath convenient methods
+ *
  */
 public abstract class ClasspathHelper {
 
@@ -102,11 +101,7 @@ public abstract class ClasspathHelper {
                 String path = fileInfo.getFile().getURL().toExternalForm();
                 String filename = path.substring(path.indexOf(packagePrefix) + packagePrefix.length());
 
-                if (!filename.isEmpty()) { 
-                    return resourceNameFilter.apply(filename.substring(1));
-                } else {
-                    return false;
-                }
+                return !filename.isEmpty() && resourceNameFilter.apply(filename.substring(1));
             }
 
             public boolean traverseDescendents(FileSelectInfo fileInfo) throws Exception {

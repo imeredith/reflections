@@ -9,7 +9,7 @@ import org.jfrog.maven.annomojo.annotations.MojoParameter;
 import org.jfrog.maven.annomojo.annotations.MojoPhase;
 import org.reflections.Reflections;
 import org.reflections.adapters.JavassistAdapter;
-import org.reflections.filters.IncludeExcludeChain;
+import org.reflections.util.FilterBuilder;
 import org.reflections.scanners.ClassAnnotationsScanner;
 import org.reflections.scanners.Scanner;
 import org.reflections.scanners.SubTypesScanner;
@@ -61,7 +61,7 @@ public class ReflectionsMojo extends MvnInjectableMojoSupport {
                         setUrls(Arrays.asList(parseOutputDirUrl()));
 						setScanners(parseScanners());
                         setMetadataAdapter(new JavassistAdapter());
-                        setFilter(IncludeExcludeChain.parse(includeExclude));
+                        setFilter(FilterBuilder.parse(includeExclude));
                     }
                 });
 

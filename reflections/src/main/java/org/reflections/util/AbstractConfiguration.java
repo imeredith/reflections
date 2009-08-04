@@ -28,6 +28,7 @@ public class AbstractConfiguration implements Configuration {
 		return scanners;
 	}
 
+    /** set the scanners instances for scanning different metadata */
     public void setScanners(final Scanner... scanners) {
         this.scanners = ImmutableSet.of(scanners);
     }
@@ -36,6 +37,9 @@ public class AbstractConfiguration implements Configuration {
         return urls;
     }
 
+    /** set the urls to be scanned
+     * <p>use {@link org.reflections.util.ClasspathHelper} convenient methods to get the relevant urls
+     * */
     public void setUrls(final Collection<URL> urls) {
 		this.urls = ImmutableSet.copyOf(urls);
 	}
@@ -44,6 +48,7 @@ public class AbstractConfiguration implements Configuration {
         return metadataAdapter;
     }
 
+    /** sets the metadata adapter used to fetch metadata from classes */
     public void setMetadataAdapter(final MetadataAdapter metadataAdapter) {
         this.metadataAdapter = metadataAdapter;
     }
@@ -52,6 +57,8 @@ public class AbstractConfiguration implements Configuration {
         return filter;
     }
 
+    /** sets the fully qualified name used to filter types to be scanned
+     * <p> supply a {@link com.google.common.base.Predicate} or use the {@link FilterBuilder}*/
     public void setFilter(Predicate<String> qNameFilter) {
         this.filter = qNameFilter;
     }
@@ -60,6 +67,7 @@ public class AbstractConfiguration implements Configuration {
         return useForkjoin;
     }
 
+    /** should or should not use fj (jsr166y) for parallely scanning types */
     public void useForkjoin(boolean useForkjoin) {
         this.useForkjoin = useForkjoin;
     }

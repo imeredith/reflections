@@ -8,7 +8,6 @@ import jsr166y.forkjoin.ForkJoinPool;
 import jsr166y.forkjoin.Ops;
 import jsr166y.forkjoin.ParallelArray;
 import org.apache.commons.vfs.*;
-import org.apache.commons.vfs.impl.DefaultFileSystemManager;
 import org.dom4j.Document;
 import org.dom4j.DocumentException;
 import org.dom4j.DocumentFactory;
@@ -16,14 +15,13 @@ import org.dom4j.Element;
 import org.dom4j.io.OutputFormat;
 import org.dom4j.io.SAXReader;
 import org.dom4j.io.XMLWriter;
-import org.reflections.filters.IncludePrefix;
-import org.reflections.filters.PatternFilter;
 import org.reflections.scanners.*;
 import org.reflections.scanners.Scanner;
 import org.reflections.util.AbstractConfiguration;
 import org.reflections.util.ClasspathHelper;
 import static org.reflections.util.DescriptorHelper.resolveType;
 import org.reflections.util.Utils;
+import org.reflections.util.FilterBuilder;
 import static org.reflections.util.Utils.forNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,16 +60,17 @@ import java.util.*;
  * </pre>
  * basically, to use Reflections for scanning and querying, instantiate it with a {@link org.reflections.Configuration}, for example
  * <pre>
- *         Configuration configuration = new AbstractConfiguration() {
- *           {
- *               setUrls(ClasspathHelper.getUrlsForCurrentClasspath());
- *               setScanners(new SubTypesScanner().filterBy(filter),
- *                           new ClassAnnotationsScanner().filterBy(filter));
- *               setFilter(new IncludeExcludeChain(
- *                       new IncludePrefix("your project's common package prefix here...")
- *               ));
- *           }
- *       };
+ *         new Reflections(
+ *               new AbstractConfiguration() {
+ *                   {
+ *                      Predicate<String> filter = new FilterBuilder().include("your project's common package prefix here...");           
+ *                      setFilter(filter);
+ *                      setUrls(ClasspathHelper.getUrlsForCurrentClasspath());
+ *                      setScanners(new SubTypesScanner().filterBy(filter),
+ *                                  new ClassAnnotationsScanner().filterBy(filter));
+ *                      ));
+ *                  }
+ *         });
  * </pre>
  * and than use the convenient methods to query the metadata, such as {@link #getSubTypesOf}, {@link #getTypesAnnotatedWith}, {@link #getMethodsAnnotatedWith}
  * <p>another usage of Reflections is to collect pre saved metadata xml, using {@link #collect()} and {@link #collect(String, com.google.common.base.Predicate)}.
@@ -114,7 +113,7 @@ public class Reflections {
      */
     public Reflections(final String prefix, final Scanner... scanners) {
         this(new AbstractConfiguration() {
-            final Predicate<String> filter = new IncludePrefix(prefix);
+            final Predicate<String> filter = new FilterBuilder.Include(prefix);
 
             {
                 setUrls(ClasspathHelper.getUrlsForPackagePrefix(prefix));
@@ -243,7 +242,7 @@ public class Reflections {
 
     /** collect saved Reflection xml from all urls that contains the package META-INF/reflections and includes files matching the pattern .*-reflections.xml*/
     public static Reflections collect() {
-        return collect("META-INF/reflections", new PatternFilter(".*-reflections.xml"));
+        return collect("META-INF/reflections", new FilterBuilder().include(".*-reflections.xml"));
     }
 
     /**
