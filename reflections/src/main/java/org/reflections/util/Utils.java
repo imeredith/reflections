@@ -69,4 +69,11 @@ public abstract class Utils {
             throw new ReflectionsException("could not get VFS Manager", e);
         }
     }
+    
+	/**
+	 * isEmpty compatible with Java 5
+	 */
+	public static boolean isEmpty(String s) {
+		return s == null || s.length() == 0;
+	}
 }

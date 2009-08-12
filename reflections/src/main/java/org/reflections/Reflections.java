@@ -1,12 +1,10 @@
 package org.reflections;
 
+import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
-import jsr166y.forkjoin.ForkJoinPool;
-import jsr166y.forkjoin.Ops;
-import jsr166y.forkjoin.ParallelArray;
 import org.apache.commons.vfs.*;
 import org.dom4j.Document;
 import org.dom4j.DocumentException;
@@ -15,6 +13,8 @@ import org.dom4j.Element;
 import org.dom4j.io.OutputFormat;
 import org.dom4j.io.SAXReader;
 import org.dom4j.io.XMLWriter;
+import org.reflections.adapters.ParallelStrategy;
+import org.reflections.adapters.ParallelStrategyHelper;
 import org.reflections.scanners.*;
 import org.reflections.scanners.Scanner;
 import org.reflections.util.AbstractConfiguration;
@@ -63,11 +63,10 @@ import java.util.*;
  *         new Reflections(
  *               new AbstractConfiguration() {
  *                   {
- *                      Predicate<String> filter = new FilterBuilder().include("your project's common package prefix here...");           
- *                      setFilter(filter);
+ *                      setFilter(new FilterBuilder().include("your project's common package prefix here..."));
  *                      setUrls(ClasspathHelper.getUrlsForCurrentClasspath());
- *                      setScanners(new SubTypesScanner().filterBy(filter),
- *                                  new ClassAnnotationsScanner().filterBy(filter));
+ *                      setScanners(new SubTypesScanner(),
+ *                                  new ClassAnnotationsScanner().filterBy(myClassAnnotationsFilter));
  *                      ));
  *                  }
  *         });
@@ -89,8 +88,8 @@ public class Reflections {
     private final Collection<Class<? extends Scanner>> scannerClasses;
 
     /**
-     * Reflections scan according to configuration
-     * @param configuration
+     * constructs a Reflections instance and scan according to given {@link Configuration}
+     * <p>it is prefered to use {@link org.reflections.util.AbstractConfiguration}
      */
     public Reflections(final Configuration configuration) {
         this.configuration = configuration;
@@ -109,14 +108,15 @@ public class Reflections {
 
     /**
      * a convenient constructor for scanning within a package prefix
-     * if no scanners supplied, ClassAnnotationsScanner and SubTypesScanner are used by default
+     * <p>if no scanners supplied, ClassAnnotationsScanner and SubTypesScanner are used by default
      */
     public Reflections(final String prefix, final Scanner... scanners) {
         this(new AbstractConfiguration() {
             final Predicate<String> filter = new FilterBuilder.Include(prefix);
 
             {
-                setUrls(ClasspathHelper.getUrlsForPackagePrefix(prefix));
+                Collection<URL> forPackagePrefix = ClasspathHelper.getUrlsForPackagePrefix(prefix);
+                setUrls(forPackagePrefix);
                 if (scanners == null || scanners.length == 0) {
                     setScanners(
                             new ClassAnnotationsScanner().filterBy(filter),
@@ -143,7 +143,7 @@ public class Reflections {
             return;
         }
 
-        ForkJoinPool forkJoinPool = null;
+        ParallelStrategy parallelStrategy = configuration.getParallelStrategy();
         for (URL url : configuration.getUrls()) {
             FileObject[] fileObjects;
             try {
@@ -152,14 +152,7 @@ public class Reflections {
             } catch (FileSystemException e) {
                 throw new ReflectionsException("could not resolve file in " + url, e);
             }
-            if (configuration.shouldUseForkjoin()) {
-                forkJoinPool = new ForkJoinPool();
-                ParallelArray.createFromCopy(fileObjects, forkJoinPool).apply(scanFileProcedure);
-            } else {
-                for (FileObject fileObject : fileObjects) {
-                    scanFileProcedure.apply(fileObject);
-                }
-            }
+            ParallelStrategyHelper.apply(configuration.getParallelStrategy(), fileObjects, scanFileProcedure);
         }
 
         time = System.currentTimeMillis() - time;
@@ -172,7 +165,7 @@ public class Reflections {
 
         log.info(format("Reflections took %d ms to scan %d urls, producing %d keys and %d values%s%s",
                 time, configuration.getUrls().size(), keys, values,
-                forkJoinPool != null ? format(" [using %d cores]", forkJoinPool.getParallelismLevel()) : "",
+                parallelStrategy != null ? format(" [using %d cores]", parallelStrategy.getParallelismLevel()) : "",
                 values != 0 ? format(" [%d ms per value]", time / values) : ""));
     }
 
@@ -546,7 +539,7 @@ public class Reflections {
         String methodName = methodKey.substring(p1 + 1);
 
         Class<?>[] parameterTypes = null;
-        if (!methodParameters.isEmpty()) {
+        if (!Utils.isEmpty(methodParameters)) {
             String[] parameterNames = methodParameters.split(", ");
             List<Class<?>> types = Utils.forNames(parameterNames);
             parameterTypes = types.toArray(new Class<?>[types.size()]);
@@ -583,8 +576,8 @@ public class Reflections {
         }
     };
 
-    private Ops.Procedure<FileObject> scanFileProcedure = new Ops.Procedure<FileObject>() {
-        public void apply(FileObject fileObject) {
+    private Function<FileObject, Object> scanFileProcedure = new Function<FileObject, Object>() {
+        public Object apply(FileObject fileObject) {
             Object cls;
             try {
                 cls = configuration.getMetadataAdapter().create(fileObject.getContent().getInputStream());
@@ -594,6 +587,7 @@ public class Reflections {
             for (Scanner scanner : configuration.getScanners()) {
                 scanner.scan(cls);
             }
+            return null;
         }
     };
 }

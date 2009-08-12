@@ -101,7 +101,7 @@ public abstract class ClasspathHelper {
                 String path = fileInfo.getFile().getURL().toExternalForm();
                 String filename = path.substring(path.indexOf(packagePrefix) + packagePrefix.length());
 
-                return !filename.isEmpty() && resourceNameFilter.apply(filename.substring(1));
+                return !Utils.isEmpty(filename) && resourceNameFilter.apply(filename.substring(1));
             }
 
             public boolean traverseDescendents(FileSelectInfo fileInfo) throws Exception {

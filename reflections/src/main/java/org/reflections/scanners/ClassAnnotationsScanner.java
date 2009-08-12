@@ -5,8 +5,8 @@ import java.util.List;
 /**
  *
  */
-@SuppressWarnings({"unchecked"})
 /** scans for class's annotations */
+@SuppressWarnings({"unchecked"})
 public class ClassAnnotationsScanner extends AbstractScanner {
     public static final String indexName = "ClassAnnotations";
 

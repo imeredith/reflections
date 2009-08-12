@@ -74,7 +74,7 @@ public class FilterBuilder implements Predicate<String> {
     public static FilterBuilder parse(String includeExcludeString) {
         List<Predicate<String>> filters = new ArrayList<Predicate<String>>();
 
-        if (includeExcludeString != null && !includeExcludeString.isEmpty()) {
+        if (!Utils.isEmpty(includeExcludeString)) {
             for (String string : includeExcludeString.split(",")) {
                 String trimmed = string.trim();
                 char prefix = trimmed.charAt(0);

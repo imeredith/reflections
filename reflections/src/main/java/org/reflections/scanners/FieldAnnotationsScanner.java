@@ -5,8 +5,8 @@ import java.util.List;
 /**
  *
  */
-@SuppressWarnings({"unchecked"})
 /** scans for field's annotations */
+@SuppressWarnings({"unchecked"})
 public class FieldAnnotationsScanner extends AbstractScanner {
 
     public static final String indexName = "FieldAnnotations";

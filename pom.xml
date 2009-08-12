@@ -4,7 +4,7 @@
 
 	<groupId>org.reflections</groupId>
 	<artifactId>reflections-parent</artifactId>
-    <version>0.9.4-SNAPSHOT</version>
+    <version>0.9.4</version>
 	<packaging>pom</packaging>
 
     <name>Reflections parent</name>
@@ -27,9 +27,6 @@
 			<plugin>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<version>2.4.2</version>
-				<configuration>
-					<skip>true</skip>
-				</configuration>
 			</plugin>
         </plugins>
     </build>

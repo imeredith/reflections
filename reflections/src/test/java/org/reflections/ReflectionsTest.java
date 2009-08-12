@@ -13,6 +13,7 @@ import org.reflections.util.FilterBuilder;
 import org.reflections.scanners.*;
 import org.reflections.util.AbstractConfiguration;
 import org.reflections.util.ClasspathHelper;
+import org.reflections.adapters.Jsr166ParallelStrategy;
 
 import java.lang.annotation.Annotation;
 import java.util.Arrays;
@@ -33,7 +34,7 @@ public class ReflectionsTest {
 
     private static class TestConfiguration extends AbstractConfiguration {
         {
-            useForkjoin(true);
+            setParallelStrategy(new Jsr166ParallelStrategy());
             Predicate<String> filter = new FilterBuilder().include(TestModel.class.getName());
             setScanners(
                     new SubTypesScanner().filterBy(filter),
@@ -135,7 +136,7 @@ public class ReflectionsTest {
     @Test
     public void collect() {
         Reflections testModelReflections = new Reflections("org.reflections");
-        String baseDir = System.getProperty("user.dir") + "/reflections/target/test-classes";
+        String baseDir = System.getProperty("user.dir") + "/target/test-classes";
         testModelReflections.save(baseDir + "/META-INF/reflections/testModel-reflections.xml");
 
         reflections = Reflections.collect();

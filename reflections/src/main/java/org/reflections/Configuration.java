@@ -1,6 +1,8 @@
 package org.reflections;
 
 import com.google.common.base.Predicate;
+
+import org.reflections.adapters.ParallelStrategy;
 import org.reflections.adapters.MetadataAdapter;
 import org.reflections.scanners.Scanner;
 
@@ -25,6 +27,6 @@ public interface Configuration {
     /** the fully qualified name filter used to filter types to be scanned */
     Predicate<String> getFilter();
 
-    /** should or should not use fj (jsr166y) for parallely scanning types */
-    boolean shouldUseForkjoin();
+    /** An adapter that lets us plug in various strategies for scanning types in parallel (or not!) */
+    ParallelStrategy getParallelStrategy();
 }

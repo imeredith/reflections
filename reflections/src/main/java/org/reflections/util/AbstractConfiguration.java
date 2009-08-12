@@ -4,8 +4,10 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableSet;
 import org.reflections.Configuration;
+import org.reflections.adapters.ParallelStrategy;
 import org.reflections.adapters.JavassistAdapter;
 import org.reflections.adapters.MetadataAdapter;
+import org.reflections.adapters.ThreadPoolParallelStrategy;
 import org.reflections.scanners.Scanner;
 
 import java.net.URL;
@@ -14,7 +16,7 @@ import java.util.Set;
 
 /**
  * an abstract implementation of {@link org.reflections.Configuration}
- * <p>uses reasonalbe defaults, such as {@link #useForkjoin}=true, {@link #filter}=accept all
+ * <p>uses reasonalbe defaults, such as {@link #parallelStrategy}={@link ThreadPoolParallelStrategy}, {@link #filter}=accept all
  */
 @SuppressWarnings({"RawUseOfParameterizedType"})
 public class AbstractConfiguration implements Configuration {
@@ -22,7 +24,7 @@ public class AbstractConfiguration implements Configuration {
     private Set<URL> urls;
     private MetadataAdapter metadataAdapter = new JavassistAdapter();
     private Predicate<String> filter = Predicates.alwaysTrue();
-    private boolean useForkjoin = true;
+    private ParallelStrategy parallelStrategy = ThreadPoolParallelStrategy.buildDefault();
 
     public Set<Scanner> getScanners() {
 		return scanners;
@@ -63,12 +65,11 @@ public class AbstractConfiguration implements Configuration {
         this.filter = qNameFilter;
     }
 
-    public boolean shouldUseForkjoin() {
-        return useForkjoin;
-    }
+	public ParallelStrategy getParallelStrategy() {
+		return parallelStrategy;
+	}
 
-    /** should or should not use fj (jsr166y) for parallely scanning types */
-    public void useForkjoin(boolean useForkjoin) {
-        this.useForkjoin = useForkjoin;
-    }
+	public void setParallelStrategy(ParallelStrategy parallelStrategy) {
+		this.parallelStrategy = parallelStrategy;
+	}
 }

@@ -2,14 +2,11 @@ package org.reflections.scanners;
 
 import java.util.List;
 
-/**
- *
- */
-@SuppressWarnings({"unchecked"})
 /** scans for superclass and interfaces of a class, allowing a reverse lookup for subtypes */
 public class SubTypesScanner extends AbstractScanner {
     public static final String indexName = "SubTypes";
 
+    @SuppressWarnings({"unchecked"})
     public void scan(final Object cls) {
 		String className = getMetadataAdapter().getClassName(cls);
 		String superclass = getMetadataAdapter().getSuperclassName(cls);
