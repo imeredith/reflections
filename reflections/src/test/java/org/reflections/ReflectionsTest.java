@@ -1,49 +1,48 @@
 package org.reflections;
 
 import com.google.common.base.Predicate;
+import com.google.common.collect.Lists;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
+import org.junit.Assert;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import static org.reflections.TestModel.*;
-import org.reflections.util.FilterBuilder;
 import org.reflections.scanners.*;
 import org.reflections.util.AbstractConfiguration;
 import org.reflections.util.ClasspathHelper;
-import org.reflections.adapters.Jsr166ParallelStrategy;
+import org.reflections.util.FilterBuilder;
 
+import java.io.File;
 import java.lang.annotation.Annotation;
 import java.util.Arrays;
 import static java.util.Arrays.asList;
 import java.util.Collection;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  *
  */
 public class ReflectionsTest {
-    private static Reflections reflections;
+    static Reflections reflections;
+    //todo add tests for annotations on constructors
 
     @BeforeClass
     public static void init() {
-        reflections = new Reflections(new TestConfiguration());
-    }
-
-    private static class TestConfiguration extends AbstractConfiguration {
-        {
-            setParallelStrategy(new Jsr166ParallelStrategy());
-            Predicate<String> filter = new FilterBuilder().include(TestModel.class.getName());
-            setScanners(
-                    new SubTypesScanner().filterBy(filter),
-                    new ClassAnnotationsScanner().filterBy(filter),
-                    new FieldAnnotationsScanner().filterBy(filter),
-                    new MethodAnnotationsScanner().filterBy(filter),
-                    new ConvertersScanner().filterBy(filter));
-            setUrls(asList(ClasspathHelper.getUrlForClass(TestModel.class)));
-        }
+        Predicate<String> filter = new FilterBuilder().include("org.reflections.TestModel\\$.*");
+        reflections = new Reflections(new AbstractConfiguration()
+                .filterInputsBy(filter)
+                .setScanners(
+                        new SubTypesScanner().filterResultsBy(filter),
+                        new TypeAnnotationsScanner().filterResultsBy(filter),
+                        new FieldAnnotationsScanner().filterResultsBy(filter),
+                        new MethodAnnotationsScanner().filterResultsBy(filter),
+                        new ConvertersScanner().filterResultsBy(filter))
+                .setUrls(asList(ClasspathHelper.getUrlForClass(TestModel.class))));
     }
 
     @Test
@@ -58,32 +57,35 @@ public class ReflectionsTest {
     @Test
     public void testSubTypesOf() {
         assertThat(reflections.getSubTypesOf(I1.class), are(I2.class, C1.class, C2.class, C3.class, C5.class));
-        assertThat(reflections.getSubTypesOf(I1.class, I2.class), are(I2.class, C1.class, C2.class, C3.class, C5.class));
+        assertThat(reflections.getSubTypesOf(I2.class), are(C1.class, C2.class, C3.class, C5.class));
     }
 
     @Test
     public void testTypesAnnotatedWith() {
         //@Inherited
-        assertThat("@Inherited meta-annotation should not effect annotated annotations",
-                reflections.getTypesAnnotatedWithInherited(MAI1.class), isEmpty);
+        assertThat("@Inherited meta-annotation should be honored on direct annotated only",
+                reflections.getTypesAnnotatedWith(MAI1.class), are(AI1.class));
 
-        assertThat("@Inherited meta-annotation should not effect annotated interfaces",
-                reflections.getTypesAnnotatedWithInherited(AI2.class), isEmpty);
+        assertThat("@Inherited meta-annotation should be honored on direct annotated only",
+                reflections.getTypesAnnotatedWith(AI2.class), are(I2.class));
 
         assertThat("@Inherited meta-annotation should only effect annotated superclasses and it's sub types",
-                reflections.getTypesAnnotatedWithInherited(AC1.class), are(C1.class, C2.class, C3.class, C5.class));
+                reflections.getTypesAnnotatedWith(AC1.class), are(C1.class, C2.class, C3.class, C5.class));
 
-        assertThat(reflections.getTypesAnnotatedWith(MAI1.class), are(AI1.class, I1.class, I2.class, C1.class, C2.class, C3.class, C5.class));
-        assertThat(reflections.getTypesAnnotatedWith(AI1.class), are(I1.class, I2.class, C1.class, C2.class, C3.class, C5.class));
+        assertThat("non @Inherited meta annotation effects all subtypes, including annotations interfaces and classes",
+                reflections.getTypesAnnotatedWith(AI1.class), are(I1.class, I2.class, C1.class, C2.class, C3.class, C5.class));
+
+        assertThat(reflections.getTypesAnnotatedWith(AM1.class), isEmpty);
 
         //annotation member value matching
         AC2 ac2 = new AC2() {
             public String value() {return "ugh?!";}
             public Class<? extends Annotation> annotationType() {return AC2.class;}};
 
-        assertThat(reflections.getTypesAnnotatedWithInherited(ac2), isEmpty);
+        assertThat("non @Inherited meta annotation effects all subtypes, including annotations interfaces and classes",
+                reflections.getTypesAnnotatedWith(ac2), are(C3.class, C5.class, I3.class, C6.class));
 
-        assertThat("non @Inherited meta-annotation is effective on subtypes of interfaces and supertypes",
+        assertThat("non @Inherited meta annotation effects all subtypes, including annotations interfaces and classes",
                 reflections.getTypesAnnotatedWith(ac2), are(I3.class, C6.class, C3.class, C5.class));
     }
 
@@ -92,15 +94,18 @@ public class ReflectionsTest {
         try {
             assertThat(reflections.getMethodsAnnotatedWith(AM1.class),
                     are(C4.class.getMethod("m1"),
-                        C4.class.getMethod("m2", int.class, String[].class),
+                        C4.class.getMethod("m1", int.class, String[].class),
+                        C4.class.getMethod("m1", int.class, String[][].class),
                         C4.class.getMethod("m3")));
 
-            assertThat(reflections.getMethodsAnnotatedWith(new AM1() {
-                            public String value() {return "1";}
-                            public Class<? extends Annotation> annotationType() {return AM1.class;}}),
+            AM1 am1 = new AM1() {
+                public String value() {return "1";}
+                public Class<? extends Annotation> annotationType() {return AM1.class;}
+            };
+            assertThat(reflections.getMethodsAnnotatedWith(am1),
                     are(C4.class.getMethod("m1"),
-                        C4.class.getMethod("m2", int.class, String[].class)
-                        ));
+                        C4.class.getMethod("m1", int.class, String[].class),
+                        C4.class.getMethod("m1", int.class, String[][].class)));
         } catch (NoSuchMethodException e) {
             fail();
         }
@@ -135,12 +140,45 @@ public class ReflectionsTest {
 
     @Test
     public void collect() {
-        Reflections testModelReflections = new Reflections("org.reflections");
-        String baseDir = System.getProperty("user.dir") + "/target/test-classes";
-        testModelReflections.save(baseDir + "/META-INF/reflections/testModel-reflections.xml");
+        Predicate<String> filter = new FilterBuilder().include("org.reflections.TestModel\\$.*");
+        Reflections testModelReflections = new Reflections(new AbstractConfiguration()
+                .filterInputsBy(filter)
+                .setScanners(
+                        new SubTypesScanner().filterResultsBy(filter),
+                        new TypeAnnotationsScanner().filterResultsBy(filter))
+                .setUrls(asList(ClasspathHelper.getUrlForClass(TestModel.class))));
+
+        String path = getUserDir() + "/target/test-classes" + "/META-INF/reflections/testModel-reflections.xml";
+        testModelReflections.save(path);
 
         reflections = Reflections.collect();
         testAll();
+    }
+
+    public static String getUserDir() {
+        //a hack to fix user.dir issue(?) in surfire
+        File file = new File(System.getProperty("user.dir"));
+        if (!Lists.newArrayList(file.list()).contains("target")) {
+            file = new File(file, "reflections");
+        }
+        return file.getAbsolutePath();
+    }
+
+    @Test
+    public void testResourcesScanner() {
+        Predicate<String> filter = new FilterBuilder().include(".*\\.xml");
+        Reflections reflections = new Reflections(new AbstractConfiguration()
+                .filterInputsBy(filter)
+                .setScanners(new ResourcesScanner())
+                .setUrls(asList(ClasspathHelper.getUrlForClass(TestModel.class))));
+
+        Set<String> resolved = reflections.getResources(Pattern.compile(".*resource1-reflections\\.xml"));
+        Assert.assertThat(resolved, are("META-INF/reflections/resource1-reflections.xml"));
+
+        Set<String> resources = reflections.getStore().get(ResourcesScanner.class).keySet();
+        Assert.assertThat(resources, are(
+                "resource1-reflections.xml", "resource2-reflections.xml", "testModel-reflections.xml"
+        ));
     }
 
     //
@@ -154,7 +192,7 @@ public class ReflectionsTest {
         }
     };
 
-    private <T> Matcher<Set<? super T>> are(final T... ts) {
+    public <T> Matcher<Set<? super T>> are(final T... ts) {
         final Collection<?> c1 = Arrays.asList(ts);
         return new BaseMatcher<Set<? super T>>() {
             public boolean matches(Object o) {

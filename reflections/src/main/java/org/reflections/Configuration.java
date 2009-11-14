@@ -1,13 +1,13 @@
 package org.reflections;
 
-import com.google.common.base.Predicate;
-
-import org.reflections.adapters.ParallelStrategy;
+import com.google.common.base.Supplier;
 import org.reflections.adapters.MetadataAdapter;
+import org.reflections.serializers.Serializer;
 import org.reflections.scanners.Scanner;
 
 import java.net.URL;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 
 /**
  * Configuration is used to create a configured instance of {@link Reflections}
@@ -25,8 +25,11 @@ public interface Configuration {
     MetadataAdapter getMetadataAdapter();
 
     /** the fully qualified name filter used to filter types to be scanned */
-    Predicate<String> getFilter();
+    boolean acceptsInput(String inputFqn);
 
-    /** An adapter that lets us plug in various strategies for scanning types in parallel (or not!) */
-    ParallelStrategy getParallelStrategy();
+    /** creates an executor service used to scan files */
+    Supplier<ExecutorService> getExecutorServiceSupplier();
+
+    /** the default serializer to use when saving Reflection */
+    Serializer getSerializer();
 }

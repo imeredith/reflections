@@ -1,16 +1,20 @@
 package org.reflections.util;
 
-import com.google.common.base.Predicate;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
-import org.apache.commons.vfs.*;
+import com.google.common.collect.ImmutableList;
 import org.reflections.ReflectionsException;
+import static org.reflections.util.DescriptorHelper.classNameToResourceName;
 import static org.reflections.util.DescriptorHelper.qNameToResourceName;
+import org.reflections.vfs.SystemDir;
+import org.reflections.vfs.Vfs;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.Collection;
+import java.util.Enumeration;
 import java.util.List;
 
 /**
@@ -20,32 +24,40 @@ import java.util.List;
 public abstract class ClasspathHelper {
 
     /**
-     * urls in current classpath from System property java.class.path
-     * optional patterns are used to filter url names that contains either pattern
-     *
-     * for example: getUrlsForCurrentClasspath("client/")
+     * returns a set of urls that contain resources with prefix as the given parameter, that is exist in
+     * the equivalent directory within the urls of current classpath
      */
-    public static Collection<URL> getUrlsForCurrentClasspath(String... patterns) {
+    public static List<URL> getUrlsForPackagePrefix(String packagePrefix) {
+        try {
+            Enumeration<URL> urlEnumeration = Utils.getContextClassLoader().getResources(
+                    qNameToResourceName(packagePrefix));
+            List<URL> urls = Lists.newArrayList(Iterators.forEnumeration(urlEnumeration));
+
+            return getBaseUrls(urls, getUrlsForCurrentClasspath());
+
+        } catch (IOException e) {
+            throw new ReflectionsException("Can't resolve URL for package prefix " + packagePrefix, e);
+        }
+    }
+
+    public static List<URL> getUrlsForCurrentClasspath() {
+        ClassLoader loader = Utils.getContextClassLoader();
+
+        //is URLClassLoader?
+        if (loader instanceof URLClassLoader) {
+            return ImmutableList.of(((URLClassLoader) loader).getURLs());
+        }
+
         List<URL> urls = Lists.newArrayList();
 
+        //get from java.class.path
         String javaClassPath = System.getProperty("java.class.path");
-        FileSystemManager vfsManager = Utils.getVFSManager();
-
         if (javaClassPath != null) {
+
             for (String path : javaClassPath.split(File.pathSeparator)) {
                 try {
-                    URL url = vfsManager.resolveFile(path).getURL();
-                    if (patterns != null) {
-                        for (String pattern : patterns) {
-                            if (url.toExternalForm().contains(pattern)) {
-                                urls.add(url);
-                                break; //only once
-                            }
-                        }
-                    } else {
-                        urls.add(url);
-                    }
-                } catch (FileSystemException e) {
+                    urls.add(new File(path).toURI().toURL());
+                } catch (Exception e) {
                     throw new ReflectionsException("could not create url from " + path, e);
                 }
             }
@@ -55,73 +67,47 @@ public abstract class ClasspathHelper {
     }
 
     /**
-     * actually, urls in current classpath which are directories
-     */
-    public static Collection<URL> getUrlsForSourcesOnly() {
-        List<URL> urls = Lists.newArrayList();
-
-        for (URL url : getUrlsForCurrentClasspath()) {
-            try {
-                if (Utils.getVFSManager().resolveFile(url.getPath()).getType().equals(FileType.FOLDER)) {
-                    urls.add(url);
-                }
-            } catch (FileSystemException e) {
-                throw new ReflectionsException("could not resolve url " + url, e);
-            }
-        }
-        return urls;
-    }
-
-    /**
      * the url that contains the given class.
      */
     public static URL getUrlForClass(Class<?> aClass) {
-        return Utils.getEffectiveClassLoader().getResource(
-                qNameToResourceName(aClass.getPackage().getName()));
-    }
-
-    /**
-     * returns a set of urls that contain resources with prefix as the given parameter, that is exist in
-     * the equivalent directory within the urls of current classpath
-     */
-    public static Collection<URL> getUrlsForPackagePrefix(String packagePrefix) {
-        try {
-            return Lists.newArrayList(Iterators.forEnumeration(
-                    Utils.getEffectiveClassLoader().getResources(
-                            qNameToResourceName(packagePrefix))));
-        } catch (IOException e) {
-            throw new ReflectionsException("Can't resolve URL for package prefix " + packagePrefix, e);
+        URL packageUrl = Utils.getContextClassLoader().getResource(
+                classNameToResourceName(aClass.getName()));
+        if (packageUrl != null) {
+            return getBaseUrl(packageUrl, getUrlsForCurrentClasspath());
+        } else {
+            return null;
         }
     }
 
-    /** finds all FileObjects in current class path starting with given packagePrefix and matching resourceNameFilter */
-    public static List<FileObject> findFileObjects(final String packagePrefix, final Predicate<String> resourceNameFilter) {
-        FileSelector fileSelector = new FileSelector() {
-            public boolean includeFile(FileSelectInfo fileInfo) throws Exception {
-                String path = fileInfo.getFile().getURL().toExternalForm();
-                String filename = path.substring(path.indexOf(packagePrefix) + packagePrefix.length());
+    /** get's the base url from the given urls */
+    public static URL getBaseUrl(final URL url, final Collection<URL> baseUrls) {
+        if (url != null) {
+            String path1 = Vfs.normalizePath(url);
 
-                return !Utils.isEmpty(filename) && resourceNameFilter.apply(filename.substring(1));
+            //try to return the base url
+            for (URL baseUrl : baseUrls) {
+                String path2 = Vfs.normalizePath(baseUrl);
+                if (path1.startsWith(path2)) {
+                    return baseUrl;
+                }
             }
-
-            public boolean traverseDescendents(FileSelectInfo fileInfo) throws Exception {
-                return true;
-            }
-        };
-
-        List<FileObject> fileObjects;
-        try {
-            fileObjects = Lists.newArrayList();
-
-            for (URL url : getUrlsForPackagePrefix(packagePrefix)) {
-                FileObject[] files = Utils.getVFSManager().resolveFile(url.getPath()).findFiles(fileSelector);
-                fileObjects.addAll(Lists.newArrayList(files));
-            }
-        } catch (FileSystemException e) {
-            throw new ReflectionsException("could not collect", e);
         }
 
-        return fileObjects;
+        return url;
+    }
+
+    /** get's the base url from urls in current classpath */
+    public static URL getBaseUrl(final URL url) {
+        return getBaseUrl(url, getUrlsForCurrentClasspath());
+    }
+
+    /** get's the base urls from the given urls */
+    public static List<URL> getBaseUrls(final List<URL> urls, final Collection<URL> baseUrls) {
+        List<URL> result = Lists.newArrayList();
+        for (URL url : urls) {
+            result.add(getBaseUrl(url, baseUrls));
+        }
+        return result;
     }
 }
 

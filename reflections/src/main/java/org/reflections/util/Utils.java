@@ -1,24 +1,23 @@
 package org.reflections.util;
 
-import org.apache.commons.vfs.VFS;
-import org.apache.commons.vfs.FileSystemException;
-import org.apache.commons.vfs.FileSystemManager;
-import org.reflections.ReflectionsException;
-
-import java.util.*;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * a garbage can of convenient methods
  */
 public abstract class Utils {
-    public static final String LINE_SEPARATOR = System.getProperty("line.separator");
-
     /** try to resolves all given string representation of types to a list of java types */
     public static <T> List<Class<? extends T>> forNames(final Iterable<String> classes) {
         List<Class<? extends T>> result = new ArrayList<Class<? extends T>>();
         for (String className : classes) {
             //noinspection unchecked
-            result.add((Class<? extends T>) DescriptorHelper.resolveType(className));
+            try {
+                result.add((Class<? extends T>) DescriptorHelper.resolveType(className));
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException(e);
+            }
         }
         return result;
     }
@@ -27,29 +26,17 @@ public abstract class Utils {
         List<Class<? extends T>> result = new ArrayList<Class<? extends T>>(classes.length);
         for (String className : classes) {
             //noinspection unchecked
-            result.add((Class<? extends T>) DescriptorHelper.resolveType(className));
+            try {
+                result.add((Class<? extends T>) DescriptorHelper.resolveType(className));
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException(e);
+            }
         }
         return result;
     }
 
-    public static ClassLoader getEffectiveClassLoader() {
+    public static ClassLoader getContextClassLoader() {
         return Thread.currentThread().getContextClassLoader();
-    }
-
-
-    public static String join(Collection<String> strings, String sep) {
-        if (strings.isEmpty()) {
-            return "";
-        }
-
-        StringBuilder sb = new StringBuilder();
-
-        for (String parameterName : strings) {
-            sb.append(parameterName).append(sep);
-        }
-
-        String names = sb.substring(0, sb.length() - sep.length());
-        return names;
     }
 
     public static String repeat(String string ,int times) {
@@ -62,18 +49,20 @@ public abstract class Utils {
         return sb.toString();
     }
 
-    public static FileSystemManager getVFSManager() {
-        try {
-            return VFS.getManager();
-        } catch (FileSystemException e) {
-            throw new ReflectionsException("could not get VFS Manager", e);
-        }
-    }
-    
 	/**
 	 * isEmpty compatible with Java 5
 	 */
 	public static boolean isEmpty(String s) {
 		return s == null || s.length() == 0;
 	}
+
+    public static File prepareFile(String filename) {
+        File file = new File(filename);
+        File parent = file.getAbsoluteFile().getParentFile();
+        if (!parent.exists()) {
+            //noinspection ResultOfMethodCallIgnored
+            parent.mkdirs();
+        }
+        return file;
+    }
 }

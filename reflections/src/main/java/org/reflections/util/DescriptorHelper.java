@@ -2,12 +2,10 @@ package org.reflections.util;
 
 import org.reflections.ReflectionsException;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.HashMap;
-import java.lang.reflect.Method;
-import java.lang.reflect.InvocationTargetException;
 
 /** convenient methods for translating to/from type descriptors */
 public class DescriptorHelper {
@@ -62,31 +60,27 @@ public class DescriptorHelper {
         }
     }
 
-    /**
-     * method (I[Ljava.lang.String;)Ljava.lang.Object; -> int, java.lang.String[]
-     */
+    /** method (I[Ljava.lang.String;)Ljava.lang.Object; -> int, java.lang.String[] */
     public static List<String> methodDescriptorToParameterNameList(final String descriptor) {
         return splitDescriptor(
                 descriptor.substring(descriptor.indexOf("(") + 1, descriptor.lastIndexOf(")")));
     }
 
-    /**
-     * method (I[Ljava.lang.String;)Ljava.lang.Object; -> java.lang.Object
-     */
+    /** method (I[Ljava.lang.String;)Ljava.lang.Object; -> java.lang.Object */
     public static String methodDescriptorToReturnTypeName(final String descriptor) {
         return splitDescriptor(
                 descriptor.substring(descriptor.lastIndexOf(")") + 1))
                 .get(0);
     }
 
-    /**
-     * I -> java.lang.Integer; V -> java.lang.Void
-     */
+    /** I -> java.lang.Integer; V -> java.lang.Void */
     public static String primitiveToTypeName(final char rawType) {
-        return primitiveToType(rawType).getName();
+        Class<?> primitive = rawPrimitiveToType(rawType);
+        return primitive != null ? primitive.getName() : null;
     }
 
-    private static Class<?> primitiveToType(char rawType) {
+    /** I -> java.lang.Integer; V -> java.lang.Void */
+    public static Class<?> rawPrimitiveToType(char rawType) {
         return  'Z' == rawType ? Boolean.TYPE :
                 'C' == rawType ? Character.TYPE :
                 'B' == rawType ? Byte.TYPE :
@@ -97,6 +91,19 @@ public class DescriptorHelper {
                 'D' == rawType ? Double.TYPE :
                 'V' == rawType ? Void.TYPE :
                 /*error*/      null;
+    }
+
+    //let jit inline this if neccessary
+    private static Class<?> primitiveNameToType(String primitiveName) {
+        return primitiveName.equals("boolean") ? Boolean.TYPE :
+                primitiveName.equals("char") ? Character.TYPE :
+                primitiveName.equals("byte") ? Byte.TYPE :
+                primitiveName.equals("short") ? Short.TYPE :
+                primitiveName.equals("int") ? Integer.TYPE :
+                primitiveName.equals("long") ? Long.TYPE :
+                primitiveName.equals("float") ? Float.TYPE :
+                primitiveName.equals("double") ? Double.TYPE :
+                primitiveName.equals("void") ? Void.TYPE : null;
     }
 
     /**
@@ -117,30 +124,58 @@ public class DescriptorHelper {
      * tries to resolve the given type name to a java type
      * accepted types are except for ordinary java object (java.lang.String) are primitives (int, boolean, ...) and array types (java.lang.String[][])
      */
-    public static Class<?> resolveType(String typeName) {
-        if (primitives.containsKey(typeName)) {
-            return primitives.get(typeName);
-        }
-
-        try {
+    public static Class<?> resolveType(String typeName) throws ClassNotFoundException {
+        Class<?> primitive = primitiveNameToType(typeName);
+        if (primitive != null) {
+            return primitive;
+        } else {
             String descriptor = typeNameToDescriptor(typeName);
             return Class.forName(descriptor);
-        } catch (ClassNotFoundException e) {
-            throw new ReflectionsException("could not resolve type " + typeName, e);
         }
     }
 
     //
-    static Map<String, Class<?>> primitives; static {
-        primitives = new HashMap<String, Class<?>>();
-        primitives.put("boolean", Boolean.TYPE);
-        primitives.put("char", Character.TYPE);
-        primitives.put("byte", Byte.TYPE);
-        primitives.put("short", Short.TYPE);
-        primitives.put("int", Integer.TYPE);
-        primitives.put("long", Long.TYPE);
-        primitives.put("float", Float.TYPE);
-        primitives.put("double", Double.TYPE);
-        primitives.put("void", Void.TYPE);
+    public static Method getMethodFromDescriptor(String descriptor) throws ReflectionsException {
+        //todo create method md
+        if (descriptor.contains("<init>")) {
+            throw new UnsupportedOperationException(); //todo impl 
+        }
+
+        int p0 = descriptor.indexOf('(');
+        String methodKey = descriptor.substring(0, p0);
+        String methodParameters = descriptor.substring(p0 + 1, descriptor.length() - 1);
+
+        int p1 = methodKey.lastIndexOf('.');
+        String className = methodKey.substring(methodKey.lastIndexOf(' ') + 1, p1);
+        String methodName = methodKey.substring(p1 + 1);
+
+        Class<?>[] parameterTypes = null;
+        if (!Utils.isEmpty(methodParameters)) {
+            String[] parameterNames = methodParameters.split(", ");
+            List<Class<?>> types = Utils.forNames(parameterNames);
+            parameterTypes = types.toArray(new Class<?>[types.size()]);
+        }
+
+        try {
+            return resolveType(className).getMethod(methodName, parameterTypes);
+        } catch (NoSuchMethodException e) {
+            throw new ReflectionsException("Can't resolve method named " + methodName, e);
+        } catch (ClassNotFoundException e) {
+            throw new ReflectionsException(e);
+        }
+    }
+
+    public static Field getFieldFromString(String field) {
+        //todo create field md
+        String className = field.substring(0, field.lastIndexOf('.'));
+        String fieldName = field.substring(field.lastIndexOf('.') + 1);
+
+        try {
+            return resolveType(className).getDeclaredField(fieldName);
+        } catch (NoSuchFieldException e) {
+            throw new ReflectionsException("Can't resolve field named " + fieldName, e);
+        } catch (ClassNotFoundException e) {
+            throw new ReflectionsException(e);
+        }
     }
 }

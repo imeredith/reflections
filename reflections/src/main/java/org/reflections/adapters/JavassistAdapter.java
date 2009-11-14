@@ -1,11 +1,11 @@
 package org.reflections.adapters;
 
+import com.google.common.base.Joiner;
 import static javassist.bytecode.AccessFlag.*;
 import javassist.bytecode.*;
 import javassist.bytecode.annotation.Annotation;
 import org.reflections.ReflectionsException;
 import org.reflections.util.DescriptorHelper;
-import org.reflections.util.Utils;
 
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
@@ -74,7 +74,7 @@ public class JavassistAdapter implements MetadataAdapter<ClassFile, FieldInfo, M
         return field.getName();
     }
 
-    public ClassFile create(InputStream inputStream) throws IOException {
+    public ClassFile createClassObject(InputStream inputStream) throws IOException {
         DataInputStream dis = null;
         try {
             dis = new DataInputStream(new BufferedInputStream(inputStream));
@@ -99,10 +99,11 @@ public class JavassistAdapter implements MetadataAdapter<ClassFile, FieldInfo, M
     }
 
     public String getMethodKey(ClassFile cls, MethodInfo method) {
-        List<String> parameterNames = getParameterNames(method);
-        String names = Utils.join(parameterNames, ", ");
-        return String.format("%s %s %s.%s(%s)", getMethodModifier(method), getReturnTypeName(method), getClassName(cls),
-                getMethodName(method), names);
+        return getMethodName(method) + "(" + Joiner.on(", ").join(getParameterNames(method)) + ")";
+    }
+
+    public String getMethodFullKey(ClassFile cls, MethodInfo method) {
+        return getClassName(cls) + "." + getMethodKey(cls, method);
     }
 
     //

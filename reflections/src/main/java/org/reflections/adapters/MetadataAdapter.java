@@ -1,8 +1,8 @@
 package org.reflections.adapters;
 
-import java.util.List;
-import java.io.InputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.util.List;
 
 /**
  *
@@ -37,9 +37,11 @@ public interface MetadataAdapter<C,F,M> {
 
     String getFieldName(final F field);
 
-    C create(InputStream inputStream) throws IOException;
+    C createClassObject(InputStream inputStream) throws IOException;
 
     String getMethodModifier(M method);
 
     String getMethodKey(C cls, M method);
+
+    String getMethodFullKey(C cls, M method);
 }

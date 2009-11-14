@@ -5,7 +5,6 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import org.reflections.ReflectionsException;
 
-import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -27,13 +26,19 @@ public class FilterBuilder implements Predicate<String> {
     /** include a regular expression */
     public FilterBuilder include(final String regex) {return add(new Include(regex));}
     /** exclude a regular expression*/
-    public FilterBuilder exclude(final String regex) {chain.add(new Exclude(regex)); return this;}
+    public FilterBuilder exclude(final String regex) {add(new Exclude(regex)); return this;}
     /** add a Predicate to the chain of predicates*/
     public FilterBuilder add(Predicate<String> filter) {chain.add(filter); return this;}
+    /** include a package of a given class */
+    public FilterBuilder includePackage(final Class<?> aClass) {return add(new Include(packageNameRegex(aClass)));}
+    /** exclude a package of a given class */
+    public FilterBuilder excludePackage(final Class<?> aClass) {return add(new Exclude(packageNameRegex(aClass)));}
+
+    private static String packageNameRegex(Class<?> aClass) {return aClass.getPackage().getName().replace(".","\\.") + ".*";}
 
     @Override public String toString() {return Joiner.on(", ").join(chain);}
 
-    public boolean apply(@Nullable String regex) {
+    public boolean apply(String regex) {
         boolean accept = chain == null || chain.isEmpty() || chain.get(0) instanceof Exclude;
 
         if (chain != null) {
@@ -49,7 +54,7 @@ public class FilterBuilder implements Predicate<String> {
     public abstract static class Matcher extends FilterBuilder {
         final Pattern pattern;
         public Matcher(final String regex) {pattern = Pattern.compile(regex);}
-        @Override public abstract boolean apply(@Nullable String regex);
+        @Override public abstract boolean apply(String regex);
         @Override public String toString() {return pattern.pattern();}
     }
 

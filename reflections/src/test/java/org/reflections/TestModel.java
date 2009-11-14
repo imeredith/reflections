@@ -35,7 +35,8 @@ public interface TestModel {
         protected String f3;
 
         @AM1("1") public void m1() {}
-        @AM1("1") public void m2(int integer, String... string) {}
+        @AM1("1") public void m1(int integer, String... strings) {}
+        @AM1("1") public void m1(int integer, String[][] strings) {}
         @AM1("2") public String m3() {return null;}
         public String m4(@AM1("2") String string) {return null;}
         public C3 c2toC3(C2 c2) {return null;}

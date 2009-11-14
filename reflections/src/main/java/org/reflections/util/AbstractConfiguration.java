@@ -2,37 +2,58 @@ package org.reflections.util;
 
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
+import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Sets;
 import org.reflections.Configuration;
-import org.reflections.adapters.ParallelStrategy;
-import org.reflections.adapters.JavassistAdapter;
-import org.reflections.adapters.MetadataAdapter;
-import org.reflections.adapters.ThreadPoolParallelStrategy;
-import org.reflections.scanners.Scanner;
+import org.reflections.adapters.*;
+import org.reflections.serializers.Serializer;
+import org.reflections.serializers.XmlSerializer;
+import org.reflections.scanners.*;
 
 import java.net.URL;
 import java.util.Collection;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * an abstract implementation of {@link org.reflections.Configuration}
- * <p>uses reasonalbe defaults, such as {@link #parallelStrategy}={@link ThreadPoolParallelStrategy}, {@link #filter}=accept all
+ * <p>uses reasonalbe defaults, such as SingleThreadExecutor for scanning, accept all for {@link #inputsFilter}
+ * , scanners set to {@link org.reflections.scanners.SubTypesScanner}, {@link org.reflections.scanners.TypeAnnotationsScanner},
+ * {@link org.reflections.scanners.TypesScanner}, {@link org.reflections.scanners.TypeElementsScanner},
  */
 @SuppressWarnings({"RawUseOfParameterizedType"})
 public class AbstractConfiguration implements Configuration {
     private Set<Scanner> scanners;
     private Set<URL> urls;
-    private MetadataAdapter metadataAdapter = new JavassistAdapter();
-    private Predicate<String> filter = Predicates.alwaysTrue();
-    private ParallelStrategy parallelStrategy = ThreadPoolParallelStrategy.buildDefault();
+    private MetadataAdapter metadataAdapter;
+    private Predicate<String> inputsFilter;
+    private Serializer serializer;
+    private Supplier<ExecutorService> executorServiceSupplier;
+
+    public AbstractConfiguration() {
+        //defaults
+        scanners = Sets.<Scanner>newHashSet(
+                new SubTypesScanner(), new TypeAnnotationsScanner(), new TypesScanner(), new TypeElementsScanner());
+        metadataAdapter = new JavassistAdapter();
+        inputsFilter = Predicates.alwaysTrue();
+        serializer = new XmlSerializer();
+        executorServiceSupplier = new Supplier<ExecutorService>() {
+            public ExecutorService get() {
+                return Executors.newSingleThreadExecutor();
+            }
+        };
+    }
 
     public Set<Scanner> getScanners() {
 		return scanners;
 	}
 
     /** set the scanners instances for scanning different metadata */
-    public void setScanners(final Scanner... scanners) {
+    public AbstractConfiguration setScanners(final Scanner... scanners) {
         this.scanners = ImmutableSet.of(scanners);
+        return this;
     }
 
     public Set<URL> getUrls() {
@@ -42,8 +63,17 @@ public class AbstractConfiguration implements Configuration {
     /** set the urls to be scanned
      * <p>use {@link org.reflections.util.ClasspathHelper} convenient methods to get the relevant urls
      * */
-    public void setUrls(final Collection<URL> urls) {
+    public AbstractConfiguration setUrls(final Collection<URL> urls) {
 		this.urls = ImmutableSet.copyOf(urls);
+        return this;
+	}
+
+    /** set the urls to be scanned
+     * <p>use {@link org.reflections.util.ClasspathHelper} convenient methods to get the relevant urls
+     * */
+    public AbstractConfiguration setUrls(final URL... urls) {
+		this.urls = ImmutableSet.of(urls);
+        return this;
 	}
 
     public MetadataAdapter getMetadataAdapter() {
@@ -51,25 +81,37 @@ public class AbstractConfiguration implements Configuration {
     }
 
     /** sets the metadata adapter used to fetch metadata from classes */
-    public void setMetadataAdapter(final MetadataAdapter metadataAdapter) {
+    public AbstractConfiguration setMetadataAdapter(final MetadataAdapter metadataAdapter) {
         this.metadataAdapter = metadataAdapter;
+        return this;
     }
 
-    public Predicate<String> getFilter() {
-        return filter;
+    public boolean acceptsInput(String inputFqn) {
+        return inputsFilter.apply(inputFqn);
     }
 
-    /** sets the fully qualified name used to filter types to be scanned
+    /** sets the input filter for all resources to be scanned
      * <p> supply a {@link com.google.common.base.Predicate} or use the {@link FilterBuilder}*/
-    public void setFilter(Predicate<String> qNameFilter) {
-        this.filter = qNameFilter;
+    public AbstractConfiguration filterInputsBy(Predicate<String> inputsFilter) {
+        this.inputsFilter = inputsFilter;
+        return this;
     }
 
-	public ParallelStrategy getParallelStrategy() {
-		return parallelStrategy;
-	}
+    public Supplier<ExecutorService> getExecutorServiceSupplier() {
+        return executorServiceSupplier;
+    }
 
-	public void setParallelStrategy(ParallelStrategy parallelStrategy) {
-		this.parallelStrategy = parallelStrategy;
-	}
+    public AbstractConfiguration setExecutorServiceSupplier(Supplier<ExecutorService> executorServiceSupplier) {
+        this.executorServiceSupplier = executorServiceSupplier;
+        return this;
+    }
+
+    public Serializer getSerializer() {
+        return serializer;
+    }
+
+    public AbstractConfiguration setSerializer(Serializer serializer) {
+        this.serializer = serializer;
+        return this;
+    }
 }
