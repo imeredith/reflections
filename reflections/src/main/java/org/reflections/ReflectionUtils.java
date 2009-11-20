@@ -17,20 +17,20 @@ import java.util.Set;
 /** convenient reflection methods */
 public abstract class ReflectionUtils {
 
-    public static <T> Collection<? extends Class<? super T>> getAllSuperTypes(final Class<T> type) {
-        Collection<Class<? super T>> result = Lists.newArrayList();
+    public static <T> Collection<? extends Class<?>> getAllSuperTypes(final Class<T> type) {
+        Collection<Class<?>> result = Lists.newArrayList();
 
         Class<? super T> superclass = type.getSuperclass();
-        Class<? super T>[] interfaces = type.getInterfaces();
+        Class<?>[] interfaces = type.getInterfaces();
 
         Collections.addAll(result, interfaces);
         result.add(superclass);
 
         result = Collections2.filter(result, Predicates.notNull());
 
-        Collection<Class<? super T>> subResult = Lists.newArrayList();
-        for (Class<? super T> aClass1 : result) {
-            Collection<? extends Class<? super T>> classes = getAllSuperTypes(aClass1);
+        Collection<Class<?>> subResult = Lists.newArrayList();
+        for (Class<?> aClass1 : result) {
+            Collection<? extends Class<?>> classes = getAllSuperTypes(aClass1);
             subResult.addAll(classes);
         }
 

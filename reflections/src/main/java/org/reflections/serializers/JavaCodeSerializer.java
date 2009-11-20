@@ -1,7 +1,8 @@
 package org.reflections.serializers;
 
 import com.google.common.base.Joiner;
-import com.google.common.collect.Lists;
+import com.google.common.base.Supplier;
+import com.google.common.collect.*;
 import org.reflections.Reflections;
 import org.reflections.ReflectionsException;
 import org.reflections.scanners.TypeElementsScanner;
@@ -17,8 +18,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 /** serialization of Reflections to java code
  * <p> serializes types and types elements into interfaces respectively to fully qualified name,
@@ -80,6 +80,7 @@ public class JavaCodeSerializer implements Serializer {
             className = name.substring(lastDot + 1);
         }
 
+        //generate
         try {
             StringBuilder sb = new StringBuilder();
             sb.append("//generated using Reflections JavaCodeSerializer")
@@ -143,7 +144,11 @@ public class JavaCodeSerializer implements Serializer {
 
             //get fields and methods
             List<String> fields = Lists.newArrayList();
-            List<String> methods = Lists.newArrayList();
+            final Multimap<String,String> methods = Multimaps.newSetMultimap(new HashMap<String, Collection<String>>(), new Supplier<Set<String>>() {
+                public Set<String> get() {
+                    return Sets.newHashSet();
+                }
+            });
 
             for (String element : reflections.getStore().get(TypeElementsScanner.class, fqn)) {
                 if (element.contains("(")) {
@@ -154,7 +159,7 @@ public class JavaCodeSerializer implements Serializer {
                         String params = element.substring(i1 + 1, element.indexOf(")"));
 
                         String normalized = name + (params.length() == 0 ? "" : "_" + params.replace('.', '$').replace(", ", "_").replace("[]", "$$"));
-                        methods.add(normalized);
+                        methods.put(name, normalized);
                     }
                 } else {
                     //field
@@ -174,11 +179,15 @@ public class JavaCodeSerializer implements Serializer {
 
             //add methods
             if (!methods.isEmpty()) {
-                for (String method : methods) {
-                    String methodName = getNonDuplicateName(method, fields);
-                    methodName = getNonDuplicateName(methodName, typePaths);
+                for (Map.Entry<String, String> entry : methods.entries()) {
+                    String simpleName = entry.getKey();
+                    String normalized = entry.getValue();
 
-                    sb.append(Utils.repeat("\t", indent)).append("public interface ").append(methodName).append(" extends IMethod").append(" {}\n");
+                    String methodName = methods.get(simpleName).size() == 1 ? simpleName : normalized;
+
+                    methodName = getNonDuplicateName(methodName, fields); //because fields and methods are both inners of the type, they can't duplicate
+
+                    sb.append(Utils.repeat("\t", indent)).append("public interface ").append(getNonDuplicateName(methodName, typePaths)).append(" extends IMethod").append(" {}\n");
                 }
             }
 

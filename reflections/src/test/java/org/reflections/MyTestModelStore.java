@@ -29,15 +29,15 @@ public interface MyTestModelStore extends IElement {
 			public interface TestModel$C3 extends IClass {
 			}
 			public interface TestModel$C4 extends IClass {
-				public interface f2 extends IField {}
 				public interface f1 extends IField {}
 				public interface f3 extends IField {}
-				public interface m1_int_java$lang$String$$ extends IMethod {}
-				public interface m3 extends IMethod {}
-				public interface m4_java$lang$String extends IMethod {}
-				public interface c2toC3_org$reflections$TestModel$C2 extends IMethod {}
-				public interface m1 extends IMethod {}
+				public interface f2 extends IField {}
+				public interface c2toC3 extends IMethod {}
 				public interface m1_int_java$lang$String$$$$ extends IMethod {}
+				public interface m1_int_java$lang$String$$ extends IMethod {}
+				public interface m1 extends IMethod {}
+				public interface m3 extends IMethod {}
+				public interface m4 extends IMethod {}
 			}
 			public interface TestModel$C5 extends IClass {
 			}

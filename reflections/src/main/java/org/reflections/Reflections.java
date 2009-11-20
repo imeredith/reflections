@@ -149,7 +149,7 @@ public class Reflections extends ReflectionUtils {
             }
         } finally {
             //todo use CompletionService
-            for (Future<?> future : futures) {
+            for (Future future : futures) {
                 try {
                     future.get();
                 } catch (InterruptedException e) {

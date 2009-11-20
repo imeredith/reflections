@@ -9,6 +9,7 @@ import org.reflections.util.DescriptorHelper;
 
 import java.lang.annotation.Inherited;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -23,7 +24,7 @@ public class Store {
 
 	private final Map<String/*indexName*/, Multimap<String, String>> storeMap = new MapMaker().makeComputingMap(new Function<String, Multimap<String, String>>() {
 		public Multimap<String, String> apply(String indexName) {
-			return Multimaps.newSetMultimap(new MapMaker().<String, Collection<String>>makeMap(), new Supplier<Set<String>>() {
+			return Multimaps.newSetMultimap(new HashMap<String, Collection<String>>(), new Supplier<Set<String>>() {
 				public Set<String> get() {
 					return Sets.newHashSet();
 				}
