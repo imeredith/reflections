@@ -104,10 +104,12 @@ public abstract class Vfs {
         Predicate<File> fileNamePredicate = new Predicate<File>() {
             public boolean apply(File file) {
                 String path = file.getRelativePath();
-                String filename = path.substring(path.indexOf(packagePrefix) + packagePrefix.length());
-
-                return !Utils.isEmpty(filename) && nameFilter.apply(filename.substring(1));
-
+                if (path.startsWith(packagePrefix)) {
+                    String filename = path.substring(path.indexOf(packagePrefix) + packagePrefix.length());
+                    return !Utils.isEmpty(filename) && nameFilter.apply(filename.substring(1));
+                } else {
+                    return false;
+                }
             }
         };
 
