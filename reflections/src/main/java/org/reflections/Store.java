@@ -5,7 +5,7 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
 import com.google.common.collect.*;
 import org.reflections.scanners.*;
-import org.reflections.util.DescriptorHelper;
+import org.reflections.util.Utils;
 
 import java.lang.annotation.Inherited;
 import java.util.Collection;
@@ -192,11 +192,7 @@ public class Store {
     /** is the given type name an interface. <p>causes class loading */
     public boolean isInterface(String aClass) {
         //todo create a string version of this
-        try {
-            return DescriptorHelper.resolveType(aClass).isInterface();
-        } catch (ClassNotFoundException e) {
-            throw new RuntimeException(e);
-        }
+        return Utils.forName(aClass).isInterface();
     }
 
     /** is the given type is an annotation, based on the metadata stored by TypeAnnotationsScanner */

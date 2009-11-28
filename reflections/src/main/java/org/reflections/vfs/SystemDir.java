@@ -9,10 +9,7 @@ import java.util.Stack;
 import java.util.List;
 import java.io.File;
 
-/**
- * User: ron
-* Date: Oct 9, 2009
-*/
+/** an implementation of {@link org.reflections.vfs.Vfs.Dir} for directory {@link java.io.File} */
 public class SystemDir implements Vfs.Dir {
     private final File file;
 

@@ -3,18 +3,19 @@ package org.reflections;
 import org.junit.Assert;
 import org.junit.Test;
 import org.reflections.util.ClasspathHelper;
-import org.reflections.util.Utils;
 import org.reflections.vfs.Vfs;
+import org.reflections.vfs.ZipDir;
 
+import java.io.DataInputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Collection;
-import java.io.IOException;
 
-/**
- * User: ron
- * Date: Oct 9, 2009
- */
+/** */
 public class VfsTest {
 
     private void testVfsDir(URL url) {
@@ -53,8 +54,48 @@ public class VfsTest {
     }
 
     @Test
-    public void vfsFromOtherDirType() {
-        //todo http jar
+    public void vfsFromHttpUrl() throws MalformedURLException {
+        Vfs.addDefaultURLTypes(new Vfs.UrlType() {
+            public boolean matches(URL url)         {return url.getProtocol().equals("http");}
+            public Vfs.Dir createDir(final URL url) {return new HttpDir(url);}
+        });
+
+        testVfsDir(new URL("http://mirrors.ibiblio.org/pub/mirrors/maven2/org/slf4j/slf4j-api/1.5.6/slf4j-api-1.5.6.jar"));
+    }
+
+    //this is just for the test...
+    static class HttpDir implements Vfs.Dir {
+        private final File file;
+        private final ZipDir zipDir;
+        private final String path;
+
+        HttpDir(URL url) {
+            this.path = url.toExternalForm();
+            try {file = downloadTempLocally(url);}
+            catch (IOException e) {throw new RuntimeException(e);}
+            zipDir = new ZipDir(file.getAbsolutePath());
+        }
+
+        public String getPath() {return path;}
+        public Iterable<Vfs.File> getFiles() {return zipDir.getFiles();}
+        public void close() {file.delete();}
+
+        private static java.io.File downloadTempLocally(URL url) throws IOException {
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            if (connection.getResponseCode() == 200) {
+                java.io.File temp = java.io.File.createTempFile("urlToVfs", "tmp");
+                FileOutputStream out = new FileOutputStream(temp);
+                DataInputStream in = new DataInputStream(connection.getInputStream());
+
+                int len; byte ch[] = new byte[1024];
+                while ((len = in.read(ch)) != -1) {out.write(ch, 0, len);}
+
+                connection.disconnect();
+                return temp;
+            }
+
+            return null;
+        }
     }
 
     @Test

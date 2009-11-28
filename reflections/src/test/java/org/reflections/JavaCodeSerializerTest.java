@@ -6,7 +6,7 @@ import org.junit.Test;
 import org.reflections.serializers.JavaCodeSerializer;
 import org.reflections.scanners.TypeElementsScanner;
 import org.reflections.scanners.TypesScanner;
-import org.reflections.util.AbstractConfiguration;
+import org.reflections.util.ConfigurationBuilder;
 import org.reflections.util.ClasspathHelper;
 import org.reflections.util.FilterBuilder;
 
@@ -25,7 +25,7 @@ public class JavaCodeSerializerTest {
         //generate
         Predicate<String> filter = new FilterBuilder().include("org.reflections.TestModel\\$.*").include("org.reflections.MyTestModelStore.*");
 
-        Reflections reflections = new Reflections(new AbstractConfiguration()
+        Reflections reflections = new Reflections(new ConfigurationBuilder()
                 .filterInputsBy(filter)
                 .setScanners(new TypesScanner(), new TypeElementsScanner())
                 .setUrls(asList(ClasspathHelper.getUrlForClass(TestModel.class))));
@@ -61,12 +61,12 @@ public class JavaCodeSerializerTest {
         //overloaded method with parameters
         Class<? extends JavaCodeSerializer.IMethod> method2 = MyTestModelStore.org.reflections.TestModel$C4.m1_int_java$lang$String$$.class;
         Method m2 = JavaCodeSerializer.resolveMethod(method2);
-        Assert.assertEquals(TestModel.C4.class.getDeclaredMethod("m1", Integer.TYPE, String[].class), m2);
+        Assert.assertEquals(TestModel.C4.class.getDeclaredMethod("m1", int.class, String[].class), m2);
 
         //overloaded method with parameters and multi dimensional array
-        Class<? extends JavaCodeSerializer.IMethod> method3 = MyTestModelStore.org.reflections.TestModel$C4.m1_int_java$lang$String$$$$.class;
+        Class<? extends JavaCodeSerializer.IMethod> method3 = MyTestModelStore.org.reflections.TestModel$C4.m1_int$$$$_java$lang$String$$$$.class;
         Method m3 = JavaCodeSerializer.resolveMethod(method3);
-        Assert.assertEquals(TestModel.C4.class.getDeclaredMethod("m1", Integer.TYPE, String[][].class), m3);
+        Assert.assertEquals(TestModel.C4.class.getDeclaredMethod("m1", int[][].class, String[][].class), m3);
     }
 
     @Test

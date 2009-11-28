@@ -11,7 +11,7 @@ import java.util.concurrent.ExecutorService;
 
 /**
  * Configuration is used to create a configured instance of {@link Reflections}
- * <p>it is prefered to use {@link org.reflections.util.AbstractConfiguration}
+ * <p>it is preferred to use {@link org.reflections.util.ConfigurationBuilder}
  */
 public interface Configuration {
     /** the scanner instances used for scanning different metadata */

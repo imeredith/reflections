@@ -4,10 +4,7 @@ import java.io.InputStream;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 
-/**
- * User: ron
-* Date: Oct 9, 2009
-*/
+/** an implementation of {@link org.reflections.vfs.Vfs.File} for a directory {@link java.io.File} */
 public class SystemFile implements Vfs.File {
     private final SystemDir dir;
     private final java.io.File file;

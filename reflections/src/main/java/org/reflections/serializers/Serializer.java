@@ -5,11 +5,7 @@ import org.reflections.Reflections;
 import java.io.File;
 import java.io.InputStream;
 
-/**
- * Created by IntelliJ IDEA.
- * User: ron
- * Date: Oct 28, 2009
- */
+/** Serilizer of a {@link org.reflections.Reflections} instance */
 public interface Serializer {
     /** reads the input stream into a new Reflections instance, populating it's store */
     Reflections read(InputStream inputStream);

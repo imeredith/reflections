@@ -4,29 +4,33 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import org.reflections.scanners.Scanner;
+import org.reflections.scanners.SubTypesScanner;
+import org.reflections.scanners.TypeAnnotationsScanner;
 import org.reflections.serializers.Serializer;
 import org.reflections.serializers.XmlSerializer;
-import org.reflections.scanners.*;
-import org.reflections.scanners.Scanner;
 import org.reflections.util.*;
-import static org.reflections.util.Utils.forNames;
 import org.reflections.vfs.Vfs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import static java.lang.String.format;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URL;
-import java.util.*;
+import java.util.Collection;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.regex.Pattern;
+
+import static java.lang.String.format;
+import static org.reflections.util.Utils.forNames;
 
 /**
  * Reflections one-stop-shop object
@@ -49,16 +53,11 @@ import java.util.regex.Pattern;
  * </pre>
  * basically, to use Reflections for scanning and querying, instantiate it with a {@link org.reflections.Configuration}, for example
  * <pre>
- *         new Reflections(
- *               new AbstractConfiguration() {
- *                   {
- *                      setFilter(new FilterBuilder().include("your project's common package prefix here..."));
- *                      setUrls(ClasspathHelper.getUrlsForCurrentClasspath());
- *                      setScanners(new SubTypesScanner(),
- *                                  new TypeAnnotationsScanner().filterBy(myClassAnnotationsFilter));
- *                      ));
- *                  }
- *         });
+ *      new Reflections(
+ *          new ConfigurationBuilder()
+ *              .filterInputsBy(new FilterBuilder().include("your project's common package prefix here..."))
+ *              .setUrls(ClasspathHelper.getUrlsForCurrentClasspath())
+ *              .setScanners(new SubTypesScanner(), new TypeAnnotationsScanner().filterResultsBy(myClassAnnotationsFilter)));
  * </pre>
  * and than use the convenient methods to query the metadata, such as {@link #getSubTypesOf},
  * {@link #getTypesAnnotatedWith}, {@link #getMethodsAnnotatedWith}, {@link #getFieldsAnnotatedWith}, {@link #getResources}
@@ -70,12 +69,12 @@ import java.util.regex.Pattern;
 public class Reflections extends ReflectionUtils {
     private static final Logger log = LoggerFactory.getLogger(Reflections.class);
 
-    final Configuration configuration;
-    private final Store store;
+    private final Configuration configuration;
+    private Store store;
 
     /**
      * constructs a Reflections instance and scan according to given {@link Configuration}
-     * <p>it is prefered to use {@link org.reflections.util.AbstractConfiguration}
+     * <p>it is prefered to use {@link org.reflections.util.ConfigurationBuilder}
      */
     public Reflections(final Configuration configuration) {
         this.configuration = configuration;
@@ -95,12 +94,12 @@ public class Reflections extends ReflectionUtils {
      * <p>if no scanners supplied, TypeAnnotationsScanner and SubTypesScanner are used by default
      */
     public Reflections(final String prefix, final Scanner... scanners) {
-        this(new AbstractConfiguration() {
-            final Predicate<String> filter = new FilterBuilder.Include(prefix);
+        this(new ConfigurationBuilder() {
+            final Predicate<String> filter = new FilterBuilder.Include(FilterBuilder.prefix(prefix));
 
             {
-                Collection<URL> forPackagePrefix = ClasspathHelper.getUrlsForPackagePrefix(prefix);
-                setUrls(forPackagePrefix);
+                filterInputsBy(filter);
+                setUrls(ClasspathHelper.getUrlsForPackagePrefix(prefix));
                 if (scanners == null || scanners.length == 0) {
                     setScanners(
                             new TypeAnnotationsScanner().filterResultsBy(filter),
@@ -113,7 +112,7 @@ public class Reflections extends ReflectionUtils {
     }
 
     protected Reflections() {
-        configuration = null;
+        configuration = new ConfigurationBuilder();
         store = new Store();
     }
 
@@ -171,32 +170,36 @@ public class Reflections extends ReflectionUtils {
                 executorService instanceof ThreadPoolExecutor ? format("[using %d cores]", ((ThreadPoolExecutor) executorService).getMaximumPoolSize()) : ""));
     }
 
-    /** collect saved Reflection xml from all urls that contains the package META-INF/reflections and includes files matching the pattern .*-reflections.xml*/
+    /** collect saved Reflection xml resources and merge it into a Reflections instance
+     * <p>by default, resources are collected from all urls that contains the package META-INF/reflections
+     * and includes files matching the pattern .*-reflections.xml */
     public static Reflections collect() {
-        return collect("META-INF/reflections", new FilterBuilder().include(".*-reflections.xml"));
+        return new Reflections().
+            collect("META-INF/reflections", new FilterBuilder().include(".*-reflections.xml"));
     }
 
     /**
-     * collect saved Reflections xml from all urls that contains the given packagePrefix and matches the given resourceNameFilter
+     * collect saved Reflections resources from all urls that contains the given packagePrefix and matches the given resourceNameFilter
+     * and de-serializes them using the serializer configured in the configuration
      * <p>
-     * it is prefered to use a designated resource prefix (for example META-INF/reflections but not just META-INF),
+     * it is preferred to use a designated resource prefix (for example META-INF/reflections but not just META-INF),
      * so that relevant urls could be found much faster
      */
-    public static Reflections collect(final String packagePrefix, final Predicate<String> resourceNameFilter) {
-        final Reflections reflections = new Reflections();
-
-        Iterable<Vfs.File> matchingFiles = Vfs.findFiles(ClasspathHelper.getUrlsForPackagePrefix(packagePrefix), packagePrefix, resourceNameFilter);
-
-        for (final Vfs.File file : matchingFiles) {
+    public Reflections collect(final String packagePrefix, final Predicate<String> resourceNameFilter) {
+        Serializer serializer = configuration.getSerializer();
+        if (serializer == null) {
+            serializer = new XmlSerializer();
+        }
+        for (final Vfs.File file : Vfs.findFiles(ClasspathHelper.getUrlsForPackagePrefix(packagePrefix), packagePrefix, resourceNameFilter)) {
             try {
-                reflections.merge(new XmlSerializer().read(file.getInputStream()));
-                log.info("Reflections collected metadata from " + file);
+                this.merge(serializer.read(file.getInputStream()));
+                log.info("Reflections collected metadata from " + file + " using serializer " + serializer.getClass().getName());
             } catch (IOException e) {
-                throw new ReflectionsException("could not merge" + file, e);
+                throw new ReflectionsException("could not merge " + file, e);
             }
         }
 
-        return reflections;
+        return this;
     }
 
     /**
@@ -251,7 +254,7 @@ public class Reflections extends ReflectionUtils {
 
         Set<Method> result = Sets.newHashSet();
         for (String annotated : annotatedWith) {
-            result.add(DescriptorHelper.getMethodFromDescriptor(annotated));
+            result.add(Utils.getMethodFromDescriptor(annotated));
         }
 
         return result;
@@ -275,7 +278,7 @@ public class Reflections extends ReflectionUtils {
 
         Collection<String> annotatedWith = store.getFieldsAnnotatedWith(annotation.getName());
         for (String annotated : annotatedWith) {
-            result.add(DescriptorHelper.getFieldFromString(annotated));
+            result.add(Utils.getFieldFromString(annotated));
         }
 
         return result;
@@ -302,7 +305,7 @@ public class Reflections extends ReflectionUtils {
 
         Set<String> converters = store.getConverters(from.getName(), to.getName());
         for (String converter : converters) {
-            result.add(DescriptorHelper.getMethodFromDescriptor(converter));
+            result.add(Utils.getMethodFromDescriptor(converter));
         }
 
         return result;

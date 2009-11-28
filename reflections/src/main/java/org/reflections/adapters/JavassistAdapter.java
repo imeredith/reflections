@@ -2,10 +2,11 @@ package org.reflections.adapters;
 
 import com.google.common.base.Joiner;
 import static javassist.bytecode.AccessFlag.*;
+
+import com.google.common.collect.Lists;
 import javassist.bytecode.*;
 import javassist.bytecode.annotation.Annotation;
 import org.reflections.ReflectionsException;
-import org.reflections.util.DescriptorHelper;
 
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
@@ -34,7 +35,9 @@ public class JavassistAdapter implements MetadataAdapter<ClassFile, FieldInfo, M
     }
 
     public List<String> getParameterNames(final MethodInfo method) {
-        return DescriptorHelper.methodDescriptorToParameterNameList(method.getDescriptor());
+        String descriptor = method.getDescriptor();
+        descriptor = descriptor.substring(descriptor.indexOf("(") + 1, descriptor.lastIndexOf(")"));
+        return splitDescriptorToTypeNames(descriptor);
     }
 
     public List<String> getClassAnnotationNames(final ClassFile aClass) {
@@ -67,7 +70,9 @@ public class JavassistAdapter implements MetadataAdapter<ClassFile, FieldInfo, M
     }
 
     public String getReturnTypeName(final MethodInfo method) {
-        return DescriptorHelper.methodDescriptorToReturnTypeName(method.getDescriptor());
+        String descriptor = method.getDescriptor();
+        descriptor = descriptor.substring(descriptor.lastIndexOf(")") + 1);
+        return splitDescriptorToTypeNames(descriptor).get(0);
     }
 
     public String getFieldName(final FieldInfo field) {
@@ -128,10 +133,32 @@ public class JavassistAdapter implements MetadataAdapter<ClassFile, FieldInfo, M
     }
 
     private List<String> getAnnotationNames(final Annotation[] annotations) {
-        List<String> result = new ArrayList<String>();
+        List<String> result = Lists.newArrayList();
 
         for (Annotation annotation : annotations) {
             result.add(annotation.getTypeName());
+        }
+
+        return result;
+    }
+
+    private List<String> splitDescriptorToTypeNames(final String descriptors) {
+        List<String> result = Lists.newArrayList();
+
+        if (descriptors != null && descriptors.length() != 0) {
+
+            List<Integer> indices = Lists.newArrayList();
+            Descriptor.Iterator iterator = new Descriptor.Iterator(descriptors);
+            while (iterator.hasNext()) {
+                indices.add(iterator.next());
+            }
+            indices.add(descriptors.length());
+
+            for (int i = 0; i < indices.size() - 1; i++) {
+                String s1 = Descriptor.toString(descriptors.substring(indices.get(i), indices.get(i + 1)));
+                result.add(s1);
+            }
+
         }
 
         return result;

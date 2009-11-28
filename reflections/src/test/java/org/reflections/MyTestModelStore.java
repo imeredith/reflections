@@ -1,4 +1,4 @@
-//generated using Reflections JavaCodeSerializer
+//generated using Reflections JavaCodeSerializer [Sat Nov 28 12:22:40 IST 2009]
 package org.reflections;
 
 import static org.reflections.serializers.JavaCodeSerializer.*;
@@ -33,8 +33,8 @@ public interface MyTestModelStore extends IElement {
 				public interface f3 extends IField {}
 				public interface f2 extends IField {}
 				public interface c2toC3 extends IMethod {}
-				public interface m1_int_java$lang$String$$$$ extends IMethod {}
 				public interface m1_int_java$lang$String$$ extends IMethod {}
+				public interface m1_int$$$$_java$lang$String$$$$ extends IMethod {}
 				public interface m1 extends IMethod {}
 				public interface m3 extends IMethod {}
 				public interface m4 extends IMethod {}

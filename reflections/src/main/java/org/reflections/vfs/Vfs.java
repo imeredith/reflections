@@ -54,6 +54,11 @@ public abstract class Vfs {
         defaultUrlTypes = urlTypes;
     }
 
+    /** add a static default url types. can be used to statically plug in urlTypes */
+    public static void addDefaultURLTypes(UrlType urlType) {
+        defaultUrlTypes.add(urlType);
+    }
+
     /** tries to create a Dir from the given url, using the defaultUrlTypes */
     public static Dir fromURL(final URL url) {
         return fromURL(url, defaultUrlTypes);
@@ -71,7 +76,10 @@ public abstract class Vfs {
             }
         }
 
-        throw new ReflectionsException("could not create Dir from url, no matching UrlType was found [" + url.toExternalForm() + "]");
+        throw new ReflectionsException("could not create Dir from url, no matching UrlType was found [" + url.toExternalForm() + "]\n" +
+                "either use fromURL(final URL url, final List<UrlType> urlTypes) or " +
+                "use the static setDefaultURLTypes(final List<UrlType> urlTypes) or addDefaultURLTypes(UrlType urlType) " +
+                "with your specialized UrlType.");
     }
 
     /** tries to create a Dir from the given url, using the given urlTypes*/

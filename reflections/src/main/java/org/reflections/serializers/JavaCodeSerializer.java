@@ -7,7 +7,6 @@ import org.reflections.Reflections;
 import org.reflections.ReflectionsException;
 import org.reflections.scanners.TypeElementsScanner;
 import org.reflections.scanners.TypesScanner;
-import org.reflections.util.DescriptorHelper;
 import org.reflections.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,6 +42,10 @@ import java.util.*;
  * */
 public class JavaCodeSerializer implements Serializer {
     private static final Logger log = LoggerFactory.getLogger(JavaCodeSerializer.class);
+
+    private static final char pathSeparator = '$';
+    private static final String arrayDescriptor = "$$";
+    private static final String tokenSeparator = "_"; 
 
     public static interface IElement {}
     public static interface IPackage extends IElement {}
@@ -84,7 +87,7 @@ public class JavaCodeSerializer implements Serializer {
         try {
             StringBuilder sb = new StringBuilder();
             sb.append("//generated using Reflections JavaCodeSerializer")
-//                    .append(" [").append(new Date()).append("]")
+                    .append(" [").append(new Date()).append("]")
                     .append("\n");
             if (packageName.length() != 0) {
                 sb.append("package ").append(packageName).append(";\n");
@@ -158,7 +161,11 @@ public class JavaCodeSerializer implements Serializer {
                         String name = element.substring(0, i1);
                         String params = element.substring(i1 + 1, element.indexOf(")"));
 
-                        String normalized = name + (params.length() == 0 ? "" : "_" + params.replace('.', '$').replace(", ", "_").replace("[]", "$$"));
+                        String paramsDescriptor = "";
+                        if (params.length() != 0) {
+                            paramsDescriptor = tokenSeparator + params.replace('.', pathSeparator).replace(", ", tokenSeparator).replace("[]", arrayDescriptor);
+                        }
+                        String normalized = name + paramsDescriptor;
                         methods.put(name, normalized);
                     }
                 } else {
@@ -206,7 +213,7 @@ public class JavaCodeSerializer implements Serializer {
     private String getNonDuplicateName(String candidate, List<String> prev, int offset) {
         for (int i = 0; i < offset; i++) {
             if (candidate.equals(prev.get(i))) {
-                return getNonDuplicateName(candidate + "_", prev, offset);
+                return getNonDuplicateName(candidate + tokenSeparator, prev, offset);
             }
         }
 
@@ -266,13 +273,13 @@ public class JavaCodeSerializer implements Serializer {
         try {
             String methodName;
             Class<?>[] paramTypes;
-            if (methodOgnl.contains("_")) {
-                methodName = methodOgnl.substring(0, methodOgnl.indexOf('_'));
-                String[] params = methodOgnl.substring(methodOgnl.indexOf('_') + 1).split("_");
+            if (methodOgnl.contains(tokenSeparator)) {
+                methodName = methodOgnl.substring(0, methodOgnl.indexOf(tokenSeparator));
+                String[] params = methodOgnl.substring(methodOgnl.indexOf(tokenSeparator) + 1).split(tokenSeparator);
                 paramTypes = new Class<?>[params.length];
                 for (int i = 0; i < params.length; i++) {
-                    String typeName = params[i].replace('$', '.').replace("..", "[]");
-                    paramTypes[i] = DescriptorHelper.resolveType(typeName);
+                    String typeName = params[i].replace(arrayDescriptor, "[]").replace(pathSeparator, '.');
+                    paramTypes[i] = Utils.forName(typeName);
                 }
             } else {
                 methodName = methodOgnl;

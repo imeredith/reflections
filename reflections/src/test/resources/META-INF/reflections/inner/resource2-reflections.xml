@@ -6,7 +6,7 @@
             <key>org.reflections.TestModel$AM1</key>
             <values>
                 <value>org.reflections.TestModel$C4.m3()</value>
-                <value>org.reflections.TestModel$C4.m1(int, java.lang.String[][])</value>
+                <value>org.reflections.TestModel$C4.m1(int[][], java.lang.String[][])</value>
                 <value>org.reflections.TestModel$C4.m1(int, java.lang.String[])</value>
                 <value>org.reflections.TestModel$C4.m1()</value>
             </values>

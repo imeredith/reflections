@@ -4,9 +4,7 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.ImmutableList;
 import org.reflections.ReflectionsException;
-import static org.reflections.util.DescriptorHelper.classNameToResourceName;
-import static org.reflections.util.DescriptorHelper.qNameToResourceName;
-import org.reflections.vfs.SystemDir;
+
 import org.reflections.vfs.Vfs;
 
 import java.io.File;
@@ -30,7 +28,7 @@ public abstract class ClasspathHelper {
     public static List<URL> getUrlsForPackagePrefix(String packagePrefix) {
         try {
             Enumeration<URL> urlEnumeration = Utils.getContextClassLoader().getResources(
-                    qNameToResourceName(packagePrefix));
+                    packagePrefix.replace(".", "/"));
             List<URL> urls = Lists.newArrayList(Iterators.forEnumeration(urlEnumeration));
 
             return getBaseUrls(urls, getUrlsForCurrentClasspath());
@@ -70,8 +68,8 @@ public abstract class ClasspathHelper {
      * the url that contains the given class.
      */
     public static URL getUrlForClass(Class<?> aClass) {
-        URL packageUrl = Utils.getContextClassLoader().getResource(
-                classNameToResourceName(aClass.getName()));
+        String resourceName = aClass.getName().replace(".", "/") + ".class";
+        URL packageUrl = Utils.getContextClassLoader().getResource(resourceName);
         if (packageUrl != null) {
             return getBaseUrl(packageUrl, getUrlsForCurrentClasspath());
         } else {

@@ -12,7 +12,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import static org.reflections.TestModel.*;
 import org.reflections.scanners.*;
-import org.reflections.util.AbstractConfiguration;
+import org.reflections.util.ConfigurationBuilder;
 import org.reflections.util.ClasspathHelper;
 import org.reflections.util.FilterBuilder;
 
@@ -30,11 +30,12 @@ import java.util.regex.Pattern;
 public class ReflectionsTest {
     static Reflections reflections;
     //todo add tests for annotations on constructors
+    //todo add tests for package annotations
 
     @BeforeClass
     public static void init() {
         Predicate<String> filter = new FilterBuilder().include("org.reflections.TestModel\\$.*");
-        reflections = new Reflections(new AbstractConfiguration()
+        reflections = new Reflections(new ConfigurationBuilder()
                 .filterInputsBy(filter)
                 .setScanners(
                         new SubTypesScanner().filterResultsBy(filter),
@@ -95,7 +96,7 @@ public class ReflectionsTest {
             assertThat(reflections.getMethodsAnnotatedWith(AM1.class),
                     are(C4.class.getMethod("m1"),
                         C4.class.getMethod("m1", int.class, String[].class),
-                        C4.class.getMethod("m1", int.class, String[][].class),
+                        C4.class.getMethod("m1", int[][].class, String[][].class),
                         C4.class.getMethod("m3")));
 
             AM1 am1 = new AM1() {
@@ -105,7 +106,7 @@ public class ReflectionsTest {
             assertThat(reflections.getMethodsAnnotatedWith(am1),
                     are(C4.class.getMethod("m1"),
                         C4.class.getMethod("m1", int.class, String[].class),
-                        C4.class.getMethod("m1", int.class, String[][].class)));
+                        C4.class.getMethod("m1", int[][].class, String[][].class)));
         } catch (NoSuchMethodException e) {
             fail();
         }
@@ -141,7 +142,7 @@ public class ReflectionsTest {
     @Test
     public void collect() {
         Predicate<String> filter = new FilterBuilder().include("org.reflections.TestModel\\$.*");
-        Reflections testModelReflections = new Reflections(new AbstractConfiguration()
+        Reflections testModelReflections = new Reflections(new ConfigurationBuilder()
                 .filterInputsBy(filter)
                 .setScanners(
                         new SubTypesScanner().filterResultsBy(filter),
@@ -156,9 +157,9 @@ public class ReflectionsTest {
     }
 
     public static String getUserDir() {
-        //a hack to fix user.dir issue(?) in surfire
         File file = new File(System.getProperty("user.dir"));
-        if (!Lists.newArrayList(file.list()).contains("target")) {
+        //a hack to fix user.dir issue(?) in surfire
+        if (Lists.newArrayList(file.list()).contains("reflections")) {
             file = new File(file, "reflections");
         }
         return file.getAbsolutePath();
@@ -167,7 +168,7 @@ public class ReflectionsTest {
     @Test
     public void testResourcesScanner() {
         Predicate<String> filter = new FilterBuilder().include(".*\\.xml");
-        Reflections reflections = new Reflections(new AbstractConfiguration()
+        Reflections reflections = new Reflections(new ConfigurationBuilder()
                 .filterInputsBy(filter)
                 .setScanners(new ResourcesScanner())
                 .setUrls(asList(ClasspathHelper.getUrlForClass(TestModel.class))));

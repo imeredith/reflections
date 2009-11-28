@@ -13,7 +13,7 @@ import org.reflections.Reflections;
 import org.reflections.ReflectionsException;
 import org.reflections.scanners.*;
 import org.reflections.serializers.Serializer;
-import org.reflections.util.AbstractConfiguration;
+import org.reflections.util.ConfigurationBuilder;
 import org.reflections.util.FilterBuilder;
 
 import java.io.File;
@@ -21,7 +21,6 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -102,19 +101,19 @@ public class ReflectionsMojo extends MvnInjectableMojoSupport {
 
         //
 
-        AbstractConfiguration configuration = new AbstractConfiguration()
+        ConfigurationBuilder configurationBuilder = new ConfigurationBuilder()
                 .setUrls(Arrays.asList(parseOutputDirUrl()))
                 .setScanners(new SubTypesScanner(), new TypeAnnotationsScanner());
 
         FilterBuilder filter = FilterBuilder.parse(includeExclude);
 
-        configuration.filterInputsBy(filter);
+        configurationBuilder.filterInputsBy(filter);
 
         Serializer serializerInstance = null;
         if (serializer != null && serializer.length() != 0) {
             try {
                 serializerInstance = (Serializer) Class.forName(serializer).newInstance();
-                configuration.setSerializer(serializerInstance);
+                configurationBuilder.setSerializer(serializerInstance);
             } catch (Exception ex) {
                 throw new ReflectionsException("could not create serializer instance", ex);
             }
@@ -133,17 +132,17 @@ public class ReflectionsMojo extends MvnInjectableMojoSupport {
             getLog().info("added type scanners");
         }
 
-        configuration.setScanners(scannerInstances.toArray(new Scanner[]{}));
+        configurationBuilder.setScanners(scannerInstances.toArray(new Scanner[]{}));
 
         if (parallel != null && parallel.equals(Boolean.TRUE)) {
-            configuration.setExecutorServiceSupplier(new Supplier<ExecutorService>() {
+            configurationBuilder.setExecutorServiceSupplier(new Supplier<ExecutorService>() {
                 public ExecutorService get() {
                     return Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
                 }
             });
         }
 
-        Reflections reflections = new Reflections(configuration);
+        Reflections reflections = new Reflections(configurationBuilder);
 
         for (String destination : parseDestinations()) {
             reflections.save(destination.trim());
