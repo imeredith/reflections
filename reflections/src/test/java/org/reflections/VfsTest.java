@@ -3,6 +3,7 @@ package org.reflections;
 import org.junit.Assert;
 import org.junit.Test;
 import org.reflections.util.ClasspathHelper;
+import org.reflections.util.ConfigurationBuilder;
 import org.reflections.vfs.Vfs;
 import org.reflections.vfs.ZipDir;
 

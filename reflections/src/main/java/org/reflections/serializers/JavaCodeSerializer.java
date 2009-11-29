@@ -39,6 +39,8 @@ import java.util.*;
  *  Class&#60? extends IMethod> imethod = MyTestModelStore.org.reflections.TestModel$C4.m1_int_java$lang$String$$$$.class;
  *  Method method = JavaCodeSerializer.resolve(imethod);
  * </pre>
+ * <p>depends on Reflections configured with {@link org.reflections.scanners.TypesScanner} and {@link org.reflections.scanners.TypeElementsScanner}
+ * <p><p>the {@link #save(org.reflections.Reflections, String)} method filename should be in the pattern: path/path/path/package.package.classname
  * */
 public class JavaCodeSerializer implements Serializer {
     private static final Logger log = LoggerFactory.getLogger(JavaCodeSerializer.class);
@@ -59,7 +61,7 @@ public class JavaCodeSerializer implements Serializer {
 
     /**
      * name should be in the pattern: path/path/path/package.package.classname,
-     * for example /data/projects/my/src/main/java/org.my.project.MyStore
+     * for example <pre>/data/projects/my/src/main/java/org.my.project.MyStore</pre>
      * would create class MyStore in package org.my.project in the path /data/projects/my/src/main/java
      */
     public File save(Reflections reflections, String name) {

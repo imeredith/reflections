@@ -15,7 +15,22 @@ import org.reflections.util.Utils;
 import java.io.*;
 import java.util.Map;
 
-/** serialization of Reflections to xml */
+/** serialization of Reflections to xml
+ *
+ * <p>an example of produced xml:
+ * <pre>
+ * &#60?xml version="1.0" encoding="UTF-8"?>
+ *
+ * &#60Reflections>
+ *  &#60org.reflections.scanners.MethodAnnotationsScanner>
+ *      &#60entry>
+ *          &#60key>org.reflections.TestModel$AM1&#60/key>
+ *          &#60values>
+ *              &#60value>org.reflections.TestModel$C4.m3()&#60/value>
+ *              &#60value>org.reflections.TestModel$C4.m1(int[][], java.lang.String[][])&#60/value>
+ * ...
+ * </pre>
+ * */
 public class XmlSerializer implements Serializer {
 
     public Reflections read(InputStream inputStream) {

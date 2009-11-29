@@ -65,6 +65,7 @@ import static org.reflections.util.Utils.forNames;
  * <p>in order to save a metadata use {@link #save(String)} or {@link #save(String, org.reflections.serializers.Serializer)}
  * for example with {@link org.reflections.serializers.XmlSerializer} or {@link org.reflections.serializers.JavaCodeSerializer}
  * <p>in order to collect pre saved metadata and avoid re-scanning, use {@link #collect(String, com.google.common.base.Predicate)}
+ * <p><p><p>For Javadoc, source code, and more information about Reflections Library, see http://code.google.com/p/reflections/
  */
 public class Reflections extends ReflectionUtils {
     private static final Logger log = LoggerFactory.getLogger(Reflections.class);
@@ -336,6 +337,7 @@ public class Reflections extends ReflectionUtils {
      * serialize to a given directory and filename
      * <p>* it is prefered to specify a designated directory (for example META-INF/reflections),
      * so that it could be found later much faster using the load method
+     * <p>see the documentation for the save method on the configured {@link org.reflections.serializers.Serializer}
      */
     public File save(final String filename) {
         return save(filename, configuration.getSerializer());
