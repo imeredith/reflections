@@ -54,6 +54,11 @@ public class SystemDir implements Vfs.Dir {
     }
 
     private static List<File> listFiles(final File file) {
-        return Lists.newArrayList(file.listFiles());
+        File[] files = file.listFiles();
+
+        if (files != null)
+            return Lists.newArrayList(files);
+        else
+            return Lists.newArrayList();
     }
 }

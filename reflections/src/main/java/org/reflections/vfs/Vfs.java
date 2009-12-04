@@ -8,7 +8,9 @@ import org.reflections.util.Utils;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.URL;
+import java.net.URLDecoder;
 import java.util.List;
 
 /**
@@ -166,7 +168,13 @@ public abstract class Vfs {
     //todo remove this method?
     //todo this should be removed and normaliztion should happen per UrlType and it is it's responsibility
     public static String normalizePath(final String urlPath) {
-        String path = urlPath;
+        String path;
+
+        try {
+            path = URLDecoder.decode(urlPath, "UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
+        }
 
         path = path.replace("/", java.io.File.separator); //normalize separators
         path = path.replace("\\", java.io.File.separator); //normalize separators

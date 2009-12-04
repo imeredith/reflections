@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
 
@@ -39,29 +40,33 @@ public abstract class ClasspathHelper {
     }
 
     public static List<URL> getUrlsForCurrentClasspath() {
-        ClassLoader loader = Utils.getContextClassLoader();
-
-        //is URLClassLoader?
-        if (loader instanceof URLClassLoader) {
-            return ImmutableList.of(((URLClassLoader) loader).getURLs());
-        }
-
         List<URL> urls = Lists.newArrayList();
 
-        //get from java.class.path
-        String javaClassPath = System.getProperty("java.class.path");
-        if (javaClassPath != null) {
+        //is URLClassLoader?
+        ClassLoader loader = Utils.getContextClassLoader();
+        while (loader != null) {
+            if (loader instanceof URLClassLoader) {
+                Collections.addAll(urls, ((URLClassLoader) loader).getURLs());
+            }
+            loader = loader.getParent();
+        }
 
-            for (String path : javaClassPath.split(File.pathSeparator)) {
-                try {
-                    urls.add(new File(path).toURI().toURL());
-                } catch (Exception e) {
-                    throw new ReflectionsException("could not create url from " + path, e);
+        if (urls.isEmpty()) {
+            //get from java.class.path
+            String javaClassPath = System.getProperty("java.class.path");
+            if (javaClassPath != null) {
+
+                for (String path : javaClassPath.split(File.pathSeparator)) {
+                    try {
+                        urls.add(new File(path).toURI().toURL());
+                    } catch (Exception e) {
+                        throw new ReflectionsException("could not create url from " + path, e);
+                    }
                 }
             }
         }
 
-        return urls;
+        return ImmutableList.copyOf(urls);
     }
 
     /**

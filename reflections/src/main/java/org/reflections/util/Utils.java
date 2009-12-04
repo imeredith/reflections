@@ -36,7 +36,7 @@ public abstract class Utils {
             }
 
             try {
-                return Class.forName(type);
+                return Class.forName(type, false, getContextClassLoader());
             } catch (ClassNotFoundException e) {
                 throw new RuntimeException(e);
             }
