@@ -14,12 +14,58 @@
 		<module>reflections-maven</module>
     </modules>
 
+    <distributionManagement>
+        <repository>
+            <uniqueVersion>false</uniqueVersion>
+            <id>googlecode</id>
+            <url>svn:https://reflections.googlecode.com/svn/repo</url>
+        </repository>
+    </distributionManagement>
+    
     <build>
+        <extensions>
+            <extension>
+                <groupId>org.jvnet.wagon-svn</groupId>
+                <artifactId>wagon-svn</artifactId>
+                <version>1.9</version>
+            </extension>
+        </extensions>
+        
         <plugins>
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-resources-plugin</artifactId>
+                 <configuration>
+                     <encoding>UTF-8</encoding>
+                 </configuration>
+             </plugin>
+             <plugin>
+                 <artifactId>maven-source-plugin</artifactId>
+                 <executions>
+                     <execution>
+                         <goals>
+                             <goal>jar</goal>
+                         </goals>
+                     </execution>
+                 </executions>
+             </plugin>
+            <plugin>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <configuration>
+                    <reportOutputDirectory>javadoc</reportOutputDirectory>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
+                    <encoding>UTF-8</encoding>
                     <source>1.5</source>
                     <target>1.5</target>
                 </configuration>
@@ -35,21 +81,14 @@
                 </configuration>
 			</plugin>
 
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-javadoc-plugin</artifactId>
-                <configuration>
-                    <reportOutputDirectory>javadoc</reportOutputDirectory>
-                </configuration>
-            </plugin>
         </plugins>
     </build>
 
     <repositories>
         <repository>
-            <id>google-maven-repository</id>
-            <name>Google Maven Repository</name>
-            <url>http://google-maven-repository.googlecode.com/svn/repository/</url>
+            <id>java.net-repo</id>
+            <name>java.net-repo</name>
+            <url>http://download.java.net/maven/2/</url>
         </repository>
     </repositories>
 
