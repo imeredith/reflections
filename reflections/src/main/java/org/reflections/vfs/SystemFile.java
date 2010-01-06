@@ -24,7 +24,7 @@ public class SystemFile implements Vfs.File {
 
     public String getRelativePath() {
         if (file.getPath().startsWith(dir.getPath())) {
-            return file.getPath().substring(dir.getPath().length() + 1);
+            return file.getPath().substring(dir.getPath().length() + 1).replace('\\', '/');
         }
 
         return null; //should not get here

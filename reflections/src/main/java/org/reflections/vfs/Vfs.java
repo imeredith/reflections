@@ -176,13 +176,12 @@ public abstract class Vfs {
             throw new RuntimeException(e);
         }
 
-        path = path.replace("/", java.io.File.separator); //normalize separators
-        path = path.replace("\\", java.io.File.separator); //normalize separators
+        path = path.replace("\\", "/"); //normalize separators
         while (path.contains("//")) {path = path.replaceAll("//", "/");} //remove multiple slashes
         if (path.contains(":")) { //remove protocols
             String[] protocols = path.split(":");
             if (protocols.length > 1) {
-                String maybeDrive = protocols[protocols.length - 2];
+                String maybeDrive = protocols[protocols.length - 2].replace("\\","").replace("/","");
                 String lastSegment = protocols[protocols.length - 1];
                 if (maybeDrive.length() == 1) {
                     //leave the windows drive character if exists

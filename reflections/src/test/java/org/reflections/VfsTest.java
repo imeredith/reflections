@@ -111,7 +111,7 @@ public class VfsTest {
         Assert.assertEquals("remove extra / at the end", Vfs.normalizePath(new URL("file:/path/file.ext/")), "/path/file.ext");
         Assert.assertEquals("remove multiple slashes", Vfs.normalizePath(new URL("file://path///file.ext//")), "/path/file.ext");
         Assert.assertEquals("remove jar url prefix and ! postfix", Vfs.normalizePath(new URL("jar:file:/path/file.jar!/something")), "/path/file.jar");
-        Assert.assertEquals("decode spaces in the url", Vfs.normalizePath(new URL("file:/C:/Documents%20and%20Settings/Administrator/")), "/Documents and Settings/Administrator");    
+        Assert.assertEquals("decode spaces in the url", Vfs.normalizePath(new URL("file:/C:/Documents%20and%20Settings/Administrator/")), "c:/Documents and Settings/Administrator");    
     }
 
     //
