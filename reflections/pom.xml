@@ -37,12 +37,22 @@
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
             <version>0.9.9</version>
+            <scope>runtime</scope>
+            <optional/>
         </dependency>
 
         <dependency>
             <groupId>dom4j</groupId>
             <artifactId>dom4j</artifactId>
             <version>1.6</version>
+            <optional/>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>1.4</version>
+            <optional/>
         </dependency>
 
         <dependency>

@@ -96,52 +96,46 @@ public class Store {
 
     /**
      * get types annotated with a given annotation, both classes and annotations
-     * <p>if given annotation is annotated with {@link java.lang.annotation.Inherited}, than inherited is honored.
-     * otherwise @Inherited is not honored and all annotations are considerd inherited from interfaces and types to their subtypes
+     * <p>{@link java.lang.annotation.Inherited} is honored
      * <p><i>Note that this (@Inherited) meta-annotation type has no effect if the annotated type is used for anything other than a class.
      * Also, this meta-annotation causes annotations to be inherited only from superclasses; annotations on implemented interfaces have no effect.</i>
      */
     public Set<String> getTypesAnnotatedWith(final String annotation) {
+        return getTypesAnnotatedWith(annotation, true);
+    }
+
+    /**
+     * get types annotated with a given annotation, both classes and annotations
+     * <p>{@link java.lang.annotation.Inherited} is honored according to given honorInherited
+     * <p><i>Note that this (@Inherited) meta-annotation type has no effect if the annotated type is used for anything other than a class.
+     * Also, this meta-annotation causes annotations to be inherited only from superclasses; annotations on implemented interfaces have no effect.</i>
+     */
+    public Set<String> getTypesAnnotatedWith(final String annotation, boolean honorInherited) {
+        final ImmutableSet.Builder<String> builder = ImmutableSet.builder();
+
         if (isAnnotation(annotation)) {
-            if (isInheritedAnnotation(annotation)) {
-                return getTypesAnnotatedWithInherited(annotation);
-            } else return getAllTypesAnnotatedWith(annotation);
-        } else return ImmutableSet.of();
-    }
+            final Set<String> types = get(TypeAnnotationsScanner.class, annotation);
+            builder.addAll(types); //directly annotated
 
-    /** get types annotated with a given annotation, both classes and annotations
-     * <p>@Inherited is not honored*/
-    public Set<String> getAllTypesAnnotatedWith(final String annotation) {
-        ImmutableSet.Builder<String> result = ImmutableSet.builder();
-
-        for (String typeAnnotatedWith : get(TypeAnnotationsScanner.class, annotation)) {
-            result.add(typeAnnotatedWith);
-
-            if (isAnnotation(typeAnnotatedWith)) {
-                result.addAll(getTypesAnnotatedWith(annotation));
-            } else if (hasSubTypes(typeAnnotatedWith)) {
-                result.addAll(getSubTypesOf(typeAnnotatedWith));
-            }
-        }
-
-        return result.build();
-    }
-
-    /** get types annotated with a given annotation, both classes and annotations
-     * <p>@Inherited is honored*/
-    public Set<String> getTypesAnnotatedWithInherited(final String annotation) {
-        ImmutableSet.Builder<String> result = ImmutableSet.builder();
-
-        if (isInheritedAnnotation(annotation)) {
-            for (String typeAnnotatedWith : get(TypeAnnotationsScanner.class, annotation)) {
-                result.add(typeAnnotatedWith);
-                if (isClass(typeAnnotatedWith)) {
-                    result.addAll(getSubTypesOf(typeAnnotatedWith));
+            if (honorInherited && isInheritedAnnotation(annotation)) {
+                //when honoring @Inherited, meta-annotation should only effect annotated super classes and it's sub types
+                for (String type : types) {
+                    if (isClass(type)) {
+                        builder.addAll(getSubTypesOf(type));
+                    }
+                }
+            } else if (!honorInherited) {
+                //when not honoring @Inherited, meta annotation effects all subtypes, including annotations interfaces and classes
+                for (String type : types) {
+                    if (isAnnotation(type)) {
+                        builder.addAll(getTypesAnnotatedWith(annotation, false));
+                    } else if (hasSubTypes(type)) {
+                        builder.addAll(getSubTypesOf(type));
+                    }
                 }
             }
         }
-
-        return result.build();
+        return builder.build();
     }
 
     /** get method names annotated with a given annotation */
@@ -169,7 +163,7 @@ public class Store {
         Set<String> keys = get(ResourcesScanner.class).keySet();
         Collection<String> matches = Collections2.filter(keys, namePredicate);
 
-        return get(ResourcesScanner.class, matches.toArray(new String[]{}));
+        return get(ResourcesScanner.class, matches.toArray(new String[matches.size()]));
     }
 
     /** get resources relative paths where simple name (key) matches given regular expression

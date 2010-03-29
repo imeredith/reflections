@@ -65,7 +65,7 @@ public abstract class ReflectionUtils {
      * checks for annotation member values matching on an annotated element or it's first annotated super type, based on equlaity of members
      * <p>override this to adopt a different annotation member values matching strategy
      */
-    protected static boolean isAnnotationMembersMatcing(final Annotation annotation1, final AnnotatedElement annotatedElement) {
+    protected static boolean areAnnotationMembersMatcing(final Annotation annotation1, final AnnotatedElement annotatedElement) {
         List<AnnotatedElement> elementList = ReflectionUtils.getAllSuperTypesAnnotatedWith(annotatedElement, annotation1);
 
         if (!elementList.isEmpty()) {
@@ -96,7 +96,7 @@ public abstract class ReflectionUtils {
         Set<T> result = Sets.newHashSet();
 
         for (AnnotatedElement annotatedElement : annotatedElements) {
-            if (isAnnotationMembersMatcing(annotation, annotatedElement)) {
+            if (areAnnotationMembersMatcing(annotation, annotatedElement)) {
                 //noinspection unchecked
                 result.add((T) annotatedElement);
             }

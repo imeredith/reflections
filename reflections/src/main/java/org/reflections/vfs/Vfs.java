@@ -11,6 +11,7 @@ import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.net.URLDecoder;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -112,11 +113,11 @@ public abstract class Vfs {
 
     /** return an iterable of all {@link org.reflections.vfs.Vfs.File} in given urls, matching filePredicate */
     public static Iterable<File> findFiles(final List<URL> inUrls, final Predicate<File> filePredicate) {
-        Iterable<File> result = null;
+        Iterable<File> result = new ArrayList<File>();
 
         for (URL url : inUrls) {
             Iterable<File> iterable = Iterables.filter(fromURL(url).getFiles(), filePredicate);
-            result = result == null ? iterable : Iterables.concat(result, iterable);
+            result = Iterables.concat(result, iterable);
         }
 
         return result;

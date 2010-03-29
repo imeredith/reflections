@@ -2,11 +2,7 @@ integration instruction for jboss, spring, resteasy
     - get other fw that scan classpath on bootstrap
 
 add jboss vfs support as Vfs.UrlType
-add JsonSerializer
 add PackageAnnotationsScanner
-add MongoDbSerializer, DbSerializer
 add ant task
 add support for constructor annotations, allow query using getMethodsAnnotatedWith / getElementsAnnotatedWith
 ? add ElementAnnotationsScanner (packages, classs, fields, methods)
-add google code maven repository + explanations in the home page
-add nodeps jar in download list

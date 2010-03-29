@@ -70,7 +70,7 @@ import static org.reflections.util.Utils.forNames;
 public class Reflections extends ReflectionUtils {
     private static final Logger log = LoggerFactory.getLogger(Reflections.class);
 
-    private final Configuration configuration;
+    private final transient Configuration configuration;
     private Store store;
 
     /**
@@ -187,10 +187,17 @@ public class Reflections extends ReflectionUtils {
      * so that relevant urls could be found much faster
      */
     public Reflections collect(final String packagePrefix, final Predicate<String> resourceNameFilter) {
-        Serializer serializer = configuration.getSerializer();
-        if (serializer == null) {
-            serializer = new XmlSerializer();
-        }
+        return collect(packagePrefix, resourceNameFilter, configuration.getSerializer());
+    }
+
+    /**
+     * collect saved Reflections resources from all urls that contains the given packagePrefix and matches the given resourceNameFilter
+     * and de-serializes them using the serializer configured in the configuration
+     * <p>
+     * it is preferred to use a designated resource prefix (for example META-INF/reflections but not just META-INF),
+     * so that relevant urls could be found much faster
+     */
+    public Reflections collect(String packagePrefix, Predicate<String> resourceNameFilter, final Serializer serializer) {
         for (final Vfs.File file : Vfs.findFiles(ClasspathHelper.getUrlsForPackagePrefix(packagePrefix), packagePrefix, resourceNameFilter)) {
             try {
                 this.merge(serializer.read(file.getInputStream()));
@@ -224,8 +231,7 @@ public class Reflections extends ReflectionUtils {
 
     /**
      * get types annotated with a given annotation, both classes and annotations
-     * <p>if given annotation is annotated with {@link java.lang.annotation.Inherited}, than inherited is honored.
-     * otherwise @Inherited is not honored and all annotations are considerd inherited from interfaces and types to their subtypes
+     * <p>{@link java.lang.annotation.Inherited} is honored
      * <p><i>Note that this (@Inherited) meta-annotation type has no effect if the annotated type is used for anything other than a class.
      * Also, this meta-annotation causes annotations to be inherited only from superclasses; annotations on implemented interfaces have no effect.</i>
      * <p/>depends on TypeAnnotationsScanner and SubTypesScanner configured, otherwise an empty set is returned
@@ -235,15 +241,36 @@ public class Reflections extends ReflectionUtils {
         return ImmutableSet.copyOf(forNames(typesAnnotatedWith));
     }
 
+    /**
+     * get types annotated with a given annotation, both classes and annotations
+     * <p>{@link java.lang.annotation.Inherited} is honored according to given honorInherited
+     * <p><i>Note that this (@Inherited) meta-annotation type has no effect if the annotated type is used for anything other than a class.
+     * Also, this meta-annotation causes annotations to be inherited only from superclasses; annotations on implemented interfaces have no effect.</i>
+     * <p/>depends on TypeAnnotationsScanner and SubTypesScanner configured, otherwise an empty set is returned
+     */
+    public Set<Class<?>> getTypesAnnotatedWith(final Class<? extends Annotation> annotation, boolean honorInherited) {
+        Set<String> typesAnnotatedWith = store.getTypesAnnotatedWith(annotation.getName(), honorInherited);
+        return ImmutableSet.copyOf(forNames(typesAnnotatedWith));
+    }
+
     //todo create a string version of these
     /**
      * get types annotated with a given annotation, both classes and annotations, including annotation member values matching
-     * <p><b>@Inherited is not honored</b>, all annotations are considerd inherited from interfaces and types to their subtypes
+     * <p>{@link java.lang.annotation.Inherited} is honored
      * <p/>depends on TypeAnnotationsScanner configured, otherwise an empty set is returned
      */
     public Set<Class<?>> getTypesAnnotatedWith(final Annotation annotation) {
+        return getTypesAnnotatedWith(annotation, true);
+    }
+
+    /**
+     * get types annotated with a given annotation, both classes and annotations, including annotation member values matching
+     * <p>{@link java.lang.annotation.Inherited} is honored according to given honorInherited
+     * <p/>depends on TypeAnnotationsScanner configured, otherwise an empty set is returned
+     */
+    public Set<Class<?>> getTypesAnnotatedWith(final Annotation annotation, boolean honorInherited) {
         return getMatchingAnnotations(
-                getTypesAnnotatedWith(annotation.annotationType()), annotation);
+                getTypesAnnotatedWith(annotation.annotationType(), honorInherited), annotation);
     }
 
     /**

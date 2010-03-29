@@ -1,5 +1,6 @@
 package org.reflections;
 
+import com.google.common.base.Predicates;
 import org.junit.Assert;
 import org.junit.Test;
 import org.reflections.util.ClasspathHelper;
@@ -7,10 +8,7 @@ import org.reflections.util.ConfigurationBuilder;
 import org.reflections.vfs.Vfs;
 import org.reflections.vfs.ZipDir;
 
-import java.io.DataInputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -52,6 +50,14 @@ public class VfsTest {
     @Test
     public void vfsFromJarFileUrl() throws MalformedURLException {
         testVfsDir(new URL("jar:file://" + getSomeJar().getPath() + "!/"));
+    }
+
+    @Test
+    public void findFilesFromEmptyMatch() throws MalformedURLException {
+        final URL jar = getSomeJar();
+        final Iterable<Vfs.File> files = Vfs.findFiles(java.util.Arrays.asList(jar), Predicates.<Vfs.File>alwaysFalse());
+        Assert.assertNotNull(files);
+        Assert.assertFalse(files.iterator().hasNext());
     }
 
     @Test

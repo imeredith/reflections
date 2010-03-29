@@ -12,6 +12,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import static org.reflections.TestModel.*;
 import org.reflections.scanners.*;
+import org.reflections.serializers.JsonSerializer;
+import org.reflections.serializers.XmlSerializer;
 import org.reflections.util.ConfigurationBuilder;
 import org.reflections.util.ClasspathHelper;
 import org.reflections.util.FilterBuilder;
@@ -64,17 +66,20 @@ public class ReflectionsTest {
     @Test
     public void testTypesAnnotatedWith() {
         //@Inherited
-        assertThat("@Inherited meta-annotation should be honored on direct annotated only",
+        assertThat("when honoring @Inherited, meta-annotation should only effect annotated super classes and it's sub types",
                 reflections.getTypesAnnotatedWith(MAI1.class), are(AI1.class));
 
-        assertThat("@Inherited meta-annotation should be honored on direct annotated only",
+        assertThat("when honoring @Inherited, meta-annotation should only effect annotated super classes and it's sub types",
                 reflections.getTypesAnnotatedWith(AI2.class), are(I2.class));
 
-        assertThat("@Inherited meta-annotation should only effect annotated superclasses and it's sub types",
+        assertThat("when honoring @Inherited, meta-annotation should only effect annotated super classes and it's sub types",
                 reflections.getTypesAnnotatedWith(AC1.class), are(C1.class, C2.class, C3.class, C5.class));
 
-        assertThat("non @Inherited meta annotation effects all subtypes, including annotations interfaces and classes",
-                reflections.getTypesAnnotatedWith(AI1.class), are(I1.class, I2.class, C1.class, C2.class, C3.class, C5.class));
+        assertThat("when not honoring @Inherited, meta annotation effects all subtypes, including annotations interfaces and classes",
+                reflections.getTypesAnnotatedWith(AI1.class, false), are(I1.class, I2.class, C1.class, C2.class, C3.class, C5.class));
+
+        assertThat("when not honoring @Inherited, meta annotation effects all subtypes, including annotations interfaces and classes",
+                reflections.getTypesAnnotatedWith(AI2.class, false), are(I2.class, C1.class, C2.class, C3.class, C5.class));
 
         assertThat(reflections.getTypesAnnotatedWith(AM1.class), isEmpty);
 
@@ -83,11 +88,11 @@ public class ReflectionsTest {
             public String value() {return "ugh?!";}
             public Class<? extends Annotation> annotationType() {return AC2.class;}};
 
-        assertThat("non @Inherited meta annotation effects all subtypes, including annotations interfaces and classes",
-                reflections.getTypesAnnotatedWith(ac2), are(C3.class, C5.class, I3.class, C6.class));
+        assertThat("when honoring @Inherited, meta-annotation should only effect annotated super classes and it's sub types",
+                reflections.getTypesAnnotatedWith(ac2), are(C3.class, I3.class));
 
-        assertThat("non @Inherited meta annotation effects all subtypes, including annotations interfaces and classes",
-                reflections.getTypesAnnotatedWith(ac2), are(I3.class, C6.class, C3.class, C5.class));
+        assertThat("when not honoring @Inherited, meta annotation effects all subtypes, including annotations interfaces and classes",
+                reflections.getTypesAnnotatedWith(ac2, false), are(C3.class, C5.class, I3.class, C6.class));
     }
 
     @Test
@@ -153,6 +158,32 @@ public class ReflectionsTest {
         testModelReflections.save(path);
 
         reflections = Reflections.collect();
+        testAll();
+    }
+
+    @Test
+    public void jsonCollect() {
+        Predicate<String> filter = new FilterBuilder().include("org.reflections.TestModel\\$.*");
+        Reflections testModelReflections = new Reflections(new ConfigurationBuilder()
+                .filterInputsBy(filter)
+                .setScanners(
+                        new SubTypesScanner().filterResultsBy(filter),
+                        new TypeAnnotationsScanner().filterResultsBy(filter))
+                .setUrls(asList(ClasspathHelper.getUrlForClass(TestModel.class))));
+
+        String path = getUserDir() + "/target/test-classes" + "/META-INF/reflections/testModel-reflections.json";
+        
+        final JsonSerializer serializer = new JsonSerializer();
+        testModelReflections.save(path, serializer);
+
+        reflections = new Reflections().collect("META-INF/reflections",
+                new FilterBuilder().include(".*-reflections.json"),
+                serializer);
+
+        reflections.collect("META-INF/reflections",
+                new FilterBuilder().include(".*-reflections.xml").exclude("testModel-reflections.xml"),
+                new XmlSerializer());
+
         testAll();
     }
 
