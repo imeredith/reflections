@@ -12,13 +12,14 @@ import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 /**
  * a simple virtual file system bridge
- * <p><p>use the {@link org.reflections.vfs.Vfs#fromURL(java.net.URL)} to get a {@link org.reflections.vfs.Vfs.Dir}
+ * <p>use the {@link org.reflections.vfs.Vfs#fromURL(java.net.URL)} to get a {@link org.reflections.vfs.Vfs.Dir}
  * and than use {@link org.reflections.vfs.Vfs.Dir#getFiles()} to iterate over it's {@link org.reflections.vfs.Vfs.File}
- * <p><p>for example:
+ * <p>for example:
  * <pre>
  *      Vfs.Dir dir = Vfs.fromURL(url);
  *      Iterable<Vfs.File> files = dir.getFiles();
@@ -26,7 +27,7 @@ import java.util.List;
  *          InputStream is = file.getInputStream();
  *      }
  * </pre>
- * <p>use {@link org.reflections.vfs.Vfs#findFiles(java.util.List, com.google.common.base.Predicate)} to get an
+ * <p>use {@link org.reflections.vfs.Vfs#findFiles(java.util.Collection, com.google.common.base.Predicate)} to get an
  * iteration of files matching given name predicate over given list of urls
  * <p><p>{@link org.reflections.vfs.Vfs#fromURL(java.net.URL)} uses static {@link org.reflections.vfs.Vfs.DefaultUrlTypes} to resolves URLs
  * and it can be plugged in with {@link org.reflections.vfs.Vfs#addDefaultURLTypes(org.reflections.vfs.Vfs.UrlType)} or {@link org.reflections.vfs.Vfs#setDefaultURLTypes(java.util.List)}.
@@ -100,7 +101,7 @@ public abstract class Vfs {
             }
         }
 
-        throw new ReflectionsException("could not create Dir from url, no matching UrlType was found [" + url.toExternalForm() + "]\n" +
+        throw new ReflectionsException("could not create Vfs.Dir from url, no matching UrlType was found [" + url.toExternalForm() + "]\n" +
                 "either use fromURL(final URL url, final List<UrlType> urlTypes) or " +
                 "use the static setDefaultURLTypes(final List<UrlType> urlTypes) or addDefaultURLTypes(UrlType urlType) " +
                 "with your specialized UrlType.");
@@ -112,7 +113,7 @@ public abstract class Vfs {
     }
 
     /** return an iterable of all {@link org.reflections.vfs.Vfs.File} in given urls, matching filePredicate */
-    public static Iterable<File> findFiles(final List<URL> inUrls, final Predicate<File> filePredicate) {
+    public static Iterable<File> findFiles(final Collection<URL> inUrls, final Predicate<File> filePredicate) {
         Iterable<File> result = new ArrayList<File>();
 
         for (URL url : inUrls) {
@@ -124,7 +125,7 @@ public abstract class Vfs {
     }
 
     /** return an iterable of all {@link org.reflections.vfs.Vfs.File} in given urls, starting with given packagePrefix and matching nameFilter */
-    public static Iterable<File> findFiles(final List<URL> inUrls, final String packagePrefix, final Predicate<String> nameFilter) {
+    public static Iterable<File> findFiles(final Collection<URL> inUrls, final String packagePrefix, final Predicate<String> nameFilter) {
         Predicate<File> fileNamePredicate = new Predicate<File>() {
             public boolean apply(File file) {
                 String path = file.getRelativePath();

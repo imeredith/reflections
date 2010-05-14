@@ -8,14 +8,15 @@ import org.reflections.scanners.Scanner;
 import org.reflections.scanners.SubTypesScanner;
 import org.reflections.scanners.TypeAnnotationsScanner;
 import org.reflections.serializers.Serializer;
-import org.reflections.serializers.XmlSerializer;
-import org.reflections.util.*;
+import org.reflections.util.ClasspathHelper;
+import org.reflections.util.ConfigurationBuilder;
+import org.reflections.util.FilterBuilder;
+import org.reflections.util.Utils;
 import org.reflections.vfs.Vfs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -130,7 +131,14 @@ public class Reflections extends ReflectionUtils {
         List<Future<?>> futures = Lists.newArrayList();
         try {
             for (URL url : configuration.getUrls()) {
-                Iterable<Vfs.File> files = Vfs.fromURL(url).getFiles();
+                final Iterable<Vfs.File> files;
+                try {
+                    files = Vfs.fromURL(url).getFiles();
+                } catch (ReflectionsException e) {
+                    log.error("could not create Vfs.Dir from url. ignoring the exception and continuing", e);
+                    continue;
+                }
+
                 for (final Vfs.File file : files) {
                     Future<?> future = executorService.submit(new Runnable() {
                         public void run() {
@@ -200,7 +208,7 @@ public class Reflections extends ReflectionUtils {
     public Reflections collect(String packagePrefix, Predicate<String> resourceNameFilter, final Serializer serializer) {
         for (final Vfs.File file : Vfs.findFiles(ClasspathHelper.getUrlsForPackagePrefix(packagePrefix), packagePrefix, resourceNameFilter)) {
             try {
-                this.merge(serializer.read(file.getInputStream()));
+                merge(serializer.read(file.getInputStream()));
                 log.info("Reflections collected metadata from " + file + " using serializer " + serializer.getClass().getName());
             } catch (IOException e) {
                 throw new ReflectionsException("could not merge " + file, e);
@@ -208,6 +216,37 @@ public class Reflections extends ReflectionUtils {
         }
 
         return this;
+    }
+
+    /** merges saved Reflections resources from the given input stream, using the serializer configured in this instance's Configuration
+     *
+     * useful if you know the serialized resource location and prefer not to look it up the classpath
+     * */
+    public Reflections collect(final InputStream inputStream) {
+        try {
+            merge(configuration.getSerializer().read(inputStream));
+            log.info("Reflections collected metadata from input stream using serializer " + configuration.getSerializer().getClass().getName());
+        } catch (Exception ex) {
+            throw new ReflectionsException("could not merge input stream", ex);
+        }
+
+        return this;
+    }
+
+    /** merges saved Reflections resources from the given file, using the serializer configured in this instance's Configuration
+     *
+     * useful if you know the serialized resource location and prefer not to look it up the classpath
+     * */
+    public Reflections collect(final File file) {
+        FileInputStream inputStream = null;
+        try {
+            inputStream = new FileInputStream(file);
+            return collect(inputStream);
+        } catch (FileNotFoundException e) {
+            throw new ReflectionsException("could not obtain input stream from file " + file, e);
+        } finally {
+            if (inputStream != null) try { inputStream.close(); } catch (IOException e) { /*fuck off*/ }
+        }
     }
 
     /**

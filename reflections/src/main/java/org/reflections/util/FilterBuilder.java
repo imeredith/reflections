@@ -34,7 +34,7 @@ public class FilterBuilder implements Predicate<String> {
     /** exclude a package of a given class */
     public FilterBuilder excludePackage(final Class<?> aClass) {return add(new Exclude(packageNameRegex(aClass)));}
 
-    private static String packageNameRegex(Class<?> aClass) {return prefix(aClass.getPackage().getName());}
+    private static String packageNameRegex(Class<?> aClass) {return prefix(aClass.getPackage().getName() + ".");}
 
     public static String prefix(String qualifiedName) {return qualifiedName.replace(".","\\.") + ".*";}
 

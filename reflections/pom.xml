@@ -41,17 +41,30 @@
             <optional/>
         </dependency>
 
+        <!-- effectively needed when XmlSerilizer is used -->
         <dependency>
             <groupId>dom4j</groupId>
             <artifactId>dom4j</artifactId>
             <version>1.6</version>
+            <!--<scope>runtime</scope>-->
             <optional/>
         </dependency>
 
+        <!-- effectively needed when JsonSerilizer is used -->
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
             <version>1.4</version>
+            <!--<scope>runtime</scope>-->
+            <optional/>
+        </dependency>
+
+        <!-- effectively might be needed for war environments -->
+        <dependency>
+            <groupId>javax.servlet</groupId>
+            <artifactId>servlet-api</artifactId>
+            <version>2.5</version>
+            <!--<scope>runtime</scope>-->
             <optional/>
         </dependency>
 

@@ -13,8 +13,17 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-/**
- */
+/** serialization of Reflections to json
+ *
+ * <p>an example of produced json:
+ * <pre>
+ * {"store":{"storeMap":
+ *    {"org.reflections.scanners.TypeAnnotationsScanner":{
+ *       "org.reflections.TestModel$AC1":["org.reflections.TestModel$C1"],
+ *       "org.reflections.TestModel$AC2":["org.reflections.TestModel$I3",
+ * ...
+ * </pre>
+ * */
 public class JsonSerializer implements Serializer {
     private Gson gson;
 

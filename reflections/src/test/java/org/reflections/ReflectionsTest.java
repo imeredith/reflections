@@ -17,8 +17,10 @@ import org.reflections.serializers.XmlSerializer;
 import org.reflections.util.ConfigurationBuilder;
 import org.reflections.util.ClasspathHelper;
 import org.reflections.util.FilterBuilder;
+import org.reflections.vfs.Vfs;
 
 import java.io.File;
+import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.util.Arrays;
 import static java.util.Arrays.asList;
@@ -158,6 +160,26 @@ public class ReflectionsTest {
         testModelReflections.save(path);
 
         reflections = Reflections.collect();
+        testAll();
+    }
+
+    @Test
+    public void collectInputStream() {
+        final Iterable<Vfs.File> xmls = Vfs.findFiles(Arrays.asList(ClasspathHelper.getUrlForClass(ReflectionsTest.class)), new Predicate<Vfs.File>() {
+            public boolean apply(Vfs.File input) {
+                return input.getName().endsWith(".xml");
+            }
+        });
+
+        reflections = new Reflections();
+        for (Vfs.File xml : xmls) {
+            try {
+                reflections.collect(xml.getInputStream());
+            } catch (IOException e) {
+                throw new RuntimeException("", e);
+            }
+        }
+
         testAll();
     }
 

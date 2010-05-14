@@ -29,7 +29,7 @@ import java.util.concurrent.Executors;
  * </pre>
  * <p>default constructor sets reasonable defaults, such as SingleThreadExecutor for scanning, accept all for {@link #inputsFilter}
  * , scanners set to {@link org.reflections.scanners.SubTypesScanner}, {@link org.reflections.scanners.TypeAnnotationsScanner},
- * {@link org.reflections.scanners.TypesScanner}, {@link org.reflections.scanners.TypeElementsScanner}, using {@link org.reflections.serializers.XmlSerializer}
+ * using {@link org.reflections.serializers.XmlSerializer}
  */
 @SuppressWarnings({"RawUseOfParameterizedType"})
 public class ConfigurationBuilder implements Configuration {
@@ -42,8 +42,7 @@ public class ConfigurationBuilder implements Configuration {
 
     public ConfigurationBuilder() {
         //defaults
-        scanners = Sets.<Scanner>newHashSet(
-                new SubTypesScanner(), new TypeAnnotationsScanner(), new TypesScanner(), new TypeElementsScanner());
+        scanners = Sets.<Scanner>newHashSet(new SubTypesScanner(), new TypeAnnotationsScanner());
         metadataAdapter = new JavassistAdapter();
         inputsFilter = Predicates.alwaysTrue();
         serializer = new XmlSerializer();
@@ -109,8 +108,26 @@ public class ConfigurationBuilder implements Configuration {
         return executorServiceSupplier;
     }
 
+    /** sets the executor service used for scanning.
+     * <p>default is ThreadPoolExecutor with a single core */
     public ConfigurationBuilder setExecutorServiceSupplier(Supplier<ExecutorService> executorServiceSupplier) {
         this.executorServiceSupplier = executorServiceSupplier;
+        return this;
+    }
+
+    /** sets the executor service used for scanning to ThreadPoolExecutor with core size as {@link java.lang.Runtime#getRuntime#availableProcessors()}
+     * <p>default is ThreadPoolExecutor with a single core */
+    public ConfigurationBuilder useParallelExecutor() {
+        return useParallelExecutor(Runtime.getRuntime().availableProcessors());
+    }
+
+    /** sets the executor service used for scanning to ThreadPoolExecutor with core size as the given availableProcessors parameter
+     * <p>default is ThreadPoolExecutor with a single core */
+    public ConfigurationBuilder useParallelExecutor(final int availableProcessors) {
+        setExecutorServiceSupplier(new Supplier<ExecutorService>() { public ExecutorService get() {
+                return Executors.newFixedThreadPool(availableProcessors);
+            }
+        });
         return this;
     }
 
@@ -118,6 +135,7 @@ public class ConfigurationBuilder implements Configuration {
         return serializer;
     }
 
+    /** sets the serializer used when issuing {@link org.reflections.Reflections#save} */
     public ConfigurationBuilder setSerializer(Serializer serializer) {
         this.serializer = serializer;
         return this;
