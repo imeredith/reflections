@@ -30,33 +30,34 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>1.5.6</version>
+            <version>1.6.1</version>
         </dependency>
 
+        <!-- use any implementation you like -->
         <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-classic</artifactId>
-            <version>0.9.9</version>
-            <scope>runtime</scope>
-            <optional/>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>1.6.1</version>
+            <scope>provided</scope>
+            <optional>true</optional>
         </dependency>
 
-        <!-- effectively needed when XmlSerilizer is used -->
+        <!-- effectively needed when XmlSerializer is used -->
         <dependency>
             <groupId>dom4j</groupId>
             <artifactId>dom4j</artifactId>
             <version>1.6</version>
             <!--<scope>runtime</scope>-->
-            <optional/>
+            <optional>true</optional>
         </dependency>
 
-        <!-- effectively needed when JsonSerilizer is used -->
+        <!-- effectively needed when JsonSerializer is used -->
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
             <version>1.4</version>
             <!--<scope>runtime</scope>-->
-            <optional/>
+            <optional>true</optional>
         </dependency>
 
         <!-- effectively might be needed for war environments -->
@@ -64,8 +65,8 @@
             <groupId>javax.servlet</groupId>
             <artifactId>servlet-api</artifactId>
             <version>2.5</version>
-            <!--<scope>runtime</scope>-->
-            <optional/>
+            <scope>provided</scope>
+            <optional>true</optional>
         </dependency>
 
         <dependency>

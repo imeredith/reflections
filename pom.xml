@@ -57,6 +57,7 @@
                     <execution>
                         <goals>
                             <goal>jar</goal>
+                            <goal>javadoc</goal>
                         </goals>
                     </execution>
                 </executions>

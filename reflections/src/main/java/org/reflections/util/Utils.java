@@ -1,7 +1,9 @@
 package org.reflections.util;
 
 import com.google.common.collect.Lists;
+import org.reflections.Reflections;
 import org.reflections.ReflectionsException;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.lang.reflect.Field;

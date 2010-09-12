@@ -27,9 +27,10 @@ import java.util.concurrent.Executors;
  *              .setUrls(ClasspathHelper.getUrlsForCurrentClasspath())
  *              .setScanners(new SubTypesScanner(), new TypeAnnotationsScanner().filterResultsBy(myClassAnnotationsFilter)));
  * </pre>
- * <p>default constructor sets reasonable defaults, such as SingleThreadExecutor for scanning, accept all for {@link #inputsFilter}
+ * <p>default constructor sets reasonable defaults, such as accept all for {@link #inputsFilter}
  * , scanners set to {@link org.reflections.scanners.SubTypesScanner}, {@link org.reflections.scanners.TypeAnnotationsScanner},
- * using {@link org.reflections.serializers.XmlSerializer}
+ * executor is null - that is - scanning is done in a simple for loop,
+ * lazily using {@link org.reflections.serializers.XmlSerializer}
  */
 @SuppressWarnings({"RawUseOfParameterizedType"})
 public class ConfigurationBuilder implements Configuration {
@@ -45,7 +46,6 @@ public class ConfigurationBuilder implements Configuration {
         scanners = Sets.<Scanner>newHashSet(new SubTypesScanner(), new TypeAnnotationsScanner());
         metadataAdapter = new JavassistAdapter();
         inputsFilter = Predicates.alwaysTrue();
-        serializer = new XmlSerializer();
         executorServiceSupplier = new Supplier<ExecutorService>() {
             public ExecutorService get() {
                 return Executors.newSingleThreadExecutor();
@@ -108,8 +108,7 @@ public class ConfigurationBuilder implements Configuration {
         return executorServiceSupplier;
     }
 
-    /** sets the executor service used for scanning.
-     * <p>default is ThreadPoolExecutor with a single core */
+    /** sets the executor service used for scanning. */
     public ConfigurationBuilder setExecutorServiceSupplier(Supplier<ExecutorService> executorServiceSupplier) {
         this.executorServiceSupplier = executorServiceSupplier;
         return this;
@@ -132,6 +131,9 @@ public class ConfigurationBuilder implements Configuration {
     }
 
     public Serializer getSerializer() {
+        if (serializer == null) {
+            serializer = new XmlSerializer(); //lazily defaults to XmlSerializer
+        }
         return serializer;
     }
 

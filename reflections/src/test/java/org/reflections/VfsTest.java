@@ -4,11 +4,13 @@ import com.google.common.base.Predicates;
 import org.junit.Assert;
 import org.junit.Test;
 import org.reflections.util.ClasspathHelper;
-import org.reflections.util.ConfigurationBuilder;
 import org.reflections.vfs.Vfs;
 import org.reflections.vfs.ZipDir;
 
-import java.io.*;
+import java.io.DataInputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -117,7 +119,7 @@ public class VfsTest {
         Assert.assertEquals("remove extra / at the end", Vfs.normalizePath(new URL("file:/path/file.ext/")), "/path/file.ext");
         Assert.assertEquals("remove multiple slashes", Vfs.normalizePath(new URL("file://path///file.ext//")), "/path/file.ext");
         Assert.assertEquals("remove jar url prefix and ! postfix", Vfs.normalizePath(new URL("jar:file:/path/file.jar!/something")), "/path/file.jar");
-        Assert.assertEquals("decode spaces in the url", Vfs.normalizePath(new URL("file:/C:/Documents%20and%20Settings/Administrator/")), "c:/Documents and Settings/Administrator");    
+        Assert.assertEquals("decode spaces in the url", Vfs.normalizePath(new URL("file:/C:/Documents%20and%20Settings/Administrator/")), "c:/Documents and Settings/Administrator");
     }
 
     //

@@ -14,7 +14,7 @@ public class SystemDir implements Vfs.Dir {
     private final File file;
 
     public SystemDir(URL url) {
-        file = new File(url.getFile());
+        file = new File(Vfs.normalizePath(url));
     }
 
     public String getPath() {

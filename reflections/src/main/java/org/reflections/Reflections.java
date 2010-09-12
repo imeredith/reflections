@@ -31,7 +31,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.regex.Pattern;
 
 import static java.lang.String.format;
-import static org.reflections.util.Utils.forNames;
+import static org.reflections.util.Utils.*;
 
 /**
  * Reflections one-stop-shop object
@@ -127,46 +127,58 @@ public class Reflections extends ReflectionUtils {
 
         long time = System.currentTimeMillis();
 
-        ExecutorService executorService = configuration.getExecutorServiceSupplier().get();
-        List<Future<?>> futures = Lists.newArrayList();
-        try {
-            for (URL url : configuration.getUrls()) {
-                final Iterable<Vfs.File> files;
-                try {
-                    files = Vfs.fromURL(url).getFiles();
-                } catch (ReflectionsException e) {
-                    log.error("could not create Vfs.Dir from url. ignoring the exception and continuing", e);
-                    continue;
-                }
+        ExecutorService executorService = configuration.getExecutorServiceSupplier() != null ? configuration.getExecutorServiceSupplier().get() : null;
 
-                for (final Vfs.File file : files) {
-                    Future<?> future = executorService.submit(new Runnable() {
-                        public void run() {
-                            String input = file.getRelativePath().replace('/', '.');
-                            if (configuration.acceptsInput(input)) {
-                                for (Scanner scanner : configuration.getScanners()) {
-                                    if (scanner.acceptsInput(input)) {
-                                        scanner.scan(file);
-                                    }
+        if (executorService == null) {
+            for (URL url : configuration.getUrls()) {
+                try {
+                    for (final Vfs.File file : Vfs.fromURL(url).getFiles()) {
+                        String input = file.getRelativePath().replace('/', '.');
+
+                        if (configuration.acceptsInput(input)) {
+                            for (Scanner scanner : configuration.getScanners()) {
+                                if (scanner.acceptsInput(input)) {
+                                    scanner.scan(file);
                                 }
                             }
                         }
-                    });
-                    futures.add(future);
+                    }
+                } catch (ReflectionsException e) {
+                    log.error("could not create Vfs.Dir from url. ignoring the exception and continuing", e);
                 }
+
             }
-        } finally {
+        } else {
             //todo use CompletionService
-            for (Future future : futures) {
-                try {
-                    future.get();
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                } catch (ExecutionException e) {
-                    throw new RuntimeException(e);
+            List<Future<?>> futures = Lists.newArrayList();
+            try {
+                for (URL url : configuration.getUrls()) {
+                    try {
+                        for (final Vfs.File file : Vfs.fromURL(url).getFiles()) {
+                            futures.add(executorService.submit(new Runnable() {
+                                public void run() {
+                                    String input = file.getRelativePath().replace('/', '.');
+                                    if (configuration.acceptsInput(input)) {
+                                        for (Scanner scanner : configuration.getScanners()) {
+                                            if (scanner.acceptsInput(input)) {
+                                                scanner.scan(file);
+                                            }
+                                        }
+                                    }
+                                }
+                            }));
+                        }
+                    } catch (ReflectionsException e) {
+                        log.error("could not create Vfs.Dir from url. ignoring the exception and continuing", e);
+                    }
                 }
+
+                for (Future future : futures) {
+                    try { future.get(); } catch (Exception e) { throw new RuntimeException(e); }
+                }
+            } finally {
+                executorService.shutdown();
             }
-            executorService.shutdown();
         }
 
         time = System.currentTimeMillis() - time;
@@ -176,7 +188,8 @@ public class Reflections extends ReflectionUtils {
 
         log.info(format("Reflections took %d ms to scan %d urls, producing %d keys and %d values %s",
                 time, configuration.getUrls().size(), keys, values,
-                executorService instanceof ThreadPoolExecutor ? format("[using %d cores]", ((ThreadPoolExecutor) executorService).getMaximumPoolSize()) : ""));
+                executorService != null && executorService instanceof ThreadPoolExecutor ?
+                        format("[using %d cores]", ((ThreadPoolExecutor) executorService).getMaximumPoolSize()) : ""));
     }
 
     /** collect saved Reflection xml resources and merge it into a Reflections instance
@@ -378,13 +391,17 @@ public class Reflections extends ReflectionUtils {
         return result;
     }
 
-    /** get resources relative paths where simple name (key) matches given namePredicate */
+    /** get resources relative paths where simple name (key) matches given namePredicate
+     * <p>depends on ResourcesScanner configured, otherwise an empty set is returned
+     * */
     public Set<String> getResources(final Predicate<String> namePredicate) {
         return store.getResources(namePredicate);
     }
 
     /** get resources relative paths where simple name (key) matches given regular expression
-     * <pre>Set<String> xmls = reflections.getResources(".*\\.xml");</pre>*/
+     * <p>depends on ResourcesScanner configured, otherwise an empty set is returned
+     * <pre>Set<String> xmls = reflections.getResources(".*\\.xml");</pre>
+     */
     public Set<String> getResources(final Pattern pattern) {
         return getResources(new Predicate<String>() {
             public boolean apply(String input) {
@@ -401,7 +418,7 @@ public class Reflections extends ReflectionUtils {
     //
     /**
      * serialize to a given directory and filename
-     * <p>* it is prefered to specify a designated directory (for example META-INF/reflections),
+     * <p>* it is preferred to specify a designated directory (for example META-INF/reflections),
      * so that it could be found later much faster using the load method
      * <p>see the documentation for the save method on the configured {@link org.reflections.serializers.Serializer}
      */
@@ -411,7 +428,7 @@ public class Reflections extends ReflectionUtils {
 
     /**
      * serialize to a given directory and filename using given serializer
-     * <p>* it is prefered to specify a designated directory (for example META-INF/reflections),
+     * <p>* it is preferred to specify a designated directory (for example META-INF/reflections),
      * so that it could be found later much faster using the load method
      */
     public File save(final String filename, final Serializer serializer) {

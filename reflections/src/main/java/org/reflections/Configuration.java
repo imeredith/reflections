@@ -27,7 +27,8 @@ public interface Configuration {
     /** the fully qualified name filter used to filter types to be scanned */
     boolean acceptsInput(String inputFqn);
 
-    /** creates an executor service used to scan files */
+    /** creates an executor service used to scan files
+     * if null, scanning is done in a simple for loop */
     Supplier<ExecutorService> getExecutorServiceSupplier();
 
     /** the default serializer to use when saving Reflection */

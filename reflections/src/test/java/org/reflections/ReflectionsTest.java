@@ -1,6 +1,7 @@
 package org.reflections;
 
 import com.google.common.base.Predicate;
+import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
@@ -26,6 +27,8 @@ import java.util.Arrays;
 import static java.util.Arrays.asList;
 import java.util.Collection;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.regex.Pattern;
 
 /**
@@ -47,7 +50,8 @@ public class ReflectionsTest {
                         new FieldAnnotationsScanner().filterResultsBy(filter),
                         new MethodAnnotationsScanner().filterResultsBy(filter),
                         new ConvertersScanner().filterResultsBy(filter))
-                .setUrls(asList(ClasspathHelper.getUrlForClass(TestModel.class))));
+                .setUrls(asList(ClasspathHelper.getUrlForClass(TestModel.class)))
+                .useParallelExecutor(1));
     }
 
     @Test
