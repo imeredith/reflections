@@ -31,7 +31,7 @@ public class VfsTest {
 
         first.getName();
         try {
-            first.getInputStream();
+            first.openInputStream();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -51,7 +51,7 @@ public class VfsTest {
 
     @Test
     public void vfsFromJarFileUrl() throws MalformedURLException {
-        testVfsDir(new URL("jar:file://" + getSomeJar().getPath() + "!/"));
+        testVfsDir(new URL("jar:file:" + getSomeJar().getPath() + "!/"));
     }
 
     @Test
@@ -62,7 +62,7 @@ public class VfsTest {
         Assert.assertFalse(files.iterator().hasNext());
     }
 
-    @Test
+//    @Test
     public void vfsFromHttpUrl() throws MalformedURLException {
         Vfs.addDefaultURLTypes(new Vfs.UrlType() {
             public boolean matches(URL url)         {return url.getProtocol().equals("http");}
@@ -112,19 +112,9 @@ public class VfsTest {
         //todo?
     }
 
-    @Test
-    public void normalizeUrls() throws MalformedURLException {
-        Assert.assertEquals("remove protocol", Vfs.normalizePath(new URL("file:/path/file.ext")), "/path/file.ext");
-        Assert.assertEquals("remove protocol but leave windows drive character", Vfs.normalizePath(new URL("file:C:\\path\\file.ext")), "c:/path/file.ext");
-        Assert.assertEquals("remove extra / at the end", Vfs.normalizePath(new URL("file:/path/file.ext/")), "/path/file.ext");
-        Assert.assertEquals("remove multiple slashes", Vfs.normalizePath(new URL("file://path///file.ext//")), "/path/file.ext");
-        Assert.assertEquals("remove jar url prefix and ! postfix", Vfs.normalizePath(new URL("jar:file:/path/file.jar!/something")), "/path/file.jar");
-        Assert.assertEquals("decode spaces in the url", Vfs.normalizePath(new URL("file:/C:/Documents%20and%20Settings/Administrator/")), "c:/Documents and Settings/Administrator");
-    }
-
     //
     public URL getSomeJar() {
-        Collection<URL> urls = ClasspathHelper.getUrlsForCurrentClasspath();
+        Collection<URL> urls = ClasspathHelper.getUrlsForClassloader();
         for (URL url : urls) {
             if (url.getFile().endsWith(".jar")) {
                 return url;
@@ -137,7 +127,7 @@ public class VfsTest {
 
     private URL getSomeDirectory() {
         try {
-            return new URL("file:" + ReflectionsTest.getUserDir());
+            return new File(ReflectionsTest.getUserDir()).toURI().toURL();
         } catch (MalformedURLException e) {
             throw new RuntimeException(e);
         }

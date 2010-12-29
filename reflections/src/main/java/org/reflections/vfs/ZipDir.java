@@ -15,17 +15,17 @@ public class ZipDir implements Vfs.Dir {
     private String path;
 
     public ZipDir(URL url) {
-        this(Vfs.normalizePath(url));
+        this(url.getPath());
     }
 
-    public ZipDir(String path) {
-        this.path = path;
-        java.util.zip.ZipFile result;
-        try {
-            result = new java.util.zip.ZipFile(path);
-        }
+    public ZipDir(String p) {
+        path = p;
+        if (path.startsWith("jar:")) { path = path.substring("jar:".length()); }
+        if (path.startsWith("file:")) { path = path.substring("file:".length()); }
+        if (path.endsWith("!/")) { path = path.substring(0, path.lastIndexOf("!/")) + "/"; }
+
+        try { zipFile = new java.util.zip.ZipFile(this.path); }
         catch (IOException e) {throw new RuntimeException(e);}
-        zipFile = result;
     }
 
     public String getPath() {

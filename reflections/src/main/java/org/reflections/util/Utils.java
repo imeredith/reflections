@@ -1,9 +1,7 @@
 package org.reflections.util;
 
 import com.google.common.collect.Lists;
-import org.reflections.Reflections;
 import org.reflections.ReflectionsException;
-import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.lang.reflect.Field;
@@ -54,6 +52,7 @@ public abstract class Utils {
     public static <T> List<Class<? extends T>> forNames(final Iterable<String> classes) {
         List<Class<? extends T>> result = new ArrayList<Class<? extends T>>();
         for (String className : classes) {
+            //noinspection unchecked
             result.add((Class<? extends T>) forName(className));
         }
         return result;
@@ -109,8 +108,7 @@ public abstract class Utils {
                 //noinspection unchecked
                 result.add(forName(className1));
             }
-            List<Class<?>> types = result;
-            parameterTypes = types.toArray(new Class<?>[types.size()]);
+            parameterTypes = result.toArray(new Class<?>[result.size()]);
         }
 
         Class<?> aClass = forName(className);
@@ -119,7 +117,7 @@ public abstract class Utils {
 //                return aClass.getConstructor(parameterTypes);
                 return null; //todo add support
             } else {
-                return aClass.getMethod(methodName, parameterTypes);
+                return aClass.getDeclaredMethod(methodName, parameterTypes);
             }
         } catch (NoSuchMethodException e) {
             throw new ReflectionsException("Can't resolve method named " + methodName, e);

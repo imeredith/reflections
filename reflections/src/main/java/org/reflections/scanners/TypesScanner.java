@@ -1,6 +1,5 @@
 package org.reflections.scanners;
 
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import org.reflections.ReflectionsException;
 import org.reflections.serializers.JavaCodeSerializer;
@@ -9,7 +8,6 @@ import org.reflections.vfs.Vfs;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
-import java.util.Set;
 
 /** scans classes and stores fqn as key and full path as value */
 public class TypesScanner extends AbstractScanner {
@@ -21,7 +19,7 @@ public class TypesScanner extends AbstractScanner {
     public void scan(Vfs.File file) {
         InputStream inputStream = null;
         try {
-            inputStream = file.getInputStream();
+            inputStream = file.openInputStream();
             Object cls = getMetadataAdapter().createClassObject(inputStream);
             scan(cls, file);
         } catch (IOException e) {
@@ -32,6 +30,7 @@ public class TypesScanner extends AbstractScanner {
                     inputStream.close();
                 }
             } catch (IOException e) {
+                //noinspection ThrowFromFinallyBlock
                 throw new ReflectionsException("could not close input stream", e);
             }
         }
@@ -39,9 +38,10 @@ public class TypesScanner extends AbstractScanner {
 
     private void scan(Object cls, Vfs.File file) {
         //avoid scanning JavaCodeSerializer outputs
+        //noinspection unchecked
         if (TypesScanner.isJavaCodeSerializer(getMetadataAdapter().getInterfacesNames(cls))) return;
 
-        String className = getMetadataAdapter().getClassName(cls);
+        @SuppressWarnings({"unchecked"}) String className = getMetadataAdapter().getClassName(cls);
 
         getStore().put(className, file.getFullPath());
     }

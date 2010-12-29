@@ -2,16 +2,14 @@ package org.reflections.scanners;
 
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
 import org.reflections.Configuration;
 import org.reflections.ReflectionsException;
 import org.reflections.adapters.MetadataAdapter;
 import org.reflections.vfs.Vfs;
 
-import java.util.Set;
-import java.io.InputStream;
 import java.io.IOException;
+import java.io.InputStream;
 
 /**
  *
@@ -34,7 +32,7 @@ public abstract class AbstractScanner implements Scanner {
     public void scan(Vfs.File file) {
         InputStream inputStream = null;
         try {
-            inputStream = file.getInputStream();
+            inputStream = file.openInputStream();
             Object cls = configuration.getMetadataAdapter().createClassObject(inputStream);
             scan(cls);
         } catch (IOException e) {
@@ -45,6 +43,7 @@ public abstract class AbstractScanner implements Scanner {
                     inputStream.close();
                 }
             } catch (IOException e) {
+                //noinspection ThrowFromFinallyBlock
                 throw new ReflectionsException("could not close input stream", e);
             }
         }

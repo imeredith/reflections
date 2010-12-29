@@ -5,8 +5,6 @@ import com.google.common.collect.Multimap;
 import org.reflections.Configuration;
 import org.reflections.vfs.Vfs;
 
-import java.util.Set;
-
 /**
  *
  */
@@ -17,6 +15,8 @@ public interface Scanner {
     boolean acceptsInput(String file);
 
     void scan(Vfs.File file);
+
+    Predicate<String> getResultFilter();
 
     Scanner filterResultsBy(Predicate<String> filter);
 

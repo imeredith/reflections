@@ -1,22 +1,18 @@
 package org.reflections;
 
 import com.google.common.base.Predicate;
-import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.junit.Assert;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import static org.reflections.TestModel.*;
 import org.reflections.scanners.*;
 import org.reflections.serializers.JsonSerializer;
 import org.reflections.serializers.XmlSerializer;
-import org.reflections.util.ConfigurationBuilder;
 import org.reflections.util.ClasspathHelper;
+import org.reflections.util.ConfigurationBuilder;
 import org.reflections.util.FilterBuilder;
 import org.reflections.vfs.Vfs;
 
@@ -24,12 +20,14 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.util.Arrays;
-import static java.util.Arrays.asList;
 import java.util.Collection;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.regex.Pattern;
+
+import static java.util.Arrays.asList;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
+import static org.reflections.TestModel.*;
 
 /**
  *
@@ -50,8 +48,7 @@ public class ReflectionsTest {
                         new FieldAnnotationsScanner().filterResultsBy(filter),
                         new MethodAnnotationsScanner().filterResultsBy(filter),
                         new ConvertersScanner().filterResultsBy(filter))
-                .setUrls(asList(ClasspathHelper.getUrlForClass(TestModel.class)))
-                .useParallelExecutor(1));
+                .setUrls(asList(ClasspathHelper.getUrlForName(TestModel.class))));
     }
 
     @Test
@@ -105,19 +102,19 @@ public class ReflectionsTest {
     public void testMethodsAnnotatedWith() {
         try {
             assertThat(reflections.getMethodsAnnotatedWith(AM1.class),
-                    are(C4.class.getMethod("m1"),
-                        C4.class.getMethod("m1", int.class, String[].class),
-                        C4.class.getMethod("m1", int[][].class, String[][].class),
-                        C4.class.getMethod("m3")));
+                    are(C4.class.getDeclaredMethod("m1"),
+                        C4.class.getDeclaredMethod("m1", int.class, String[].class),
+                        C4.class.getDeclaredMethod("m1", int[][].class, String[][].class),
+                        C4.class.getDeclaredMethod("m3")));
 
             AM1 am1 = new AM1() {
                 public String value() {return "1";}
                 public Class<? extends Annotation> annotationType() {return AM1.class;}
             };
             assertThat(reflections.getMethodsAnnotatedWith(am1),
-                    are(C4.class.getMethod("m1"),
-                        C4.class.getMethod("m1", int.class, String[].class),
-                        C4.class.getMethod("m1", int[][].class, String[][].class)));
+                    are(C4.class.getDeclaredMethod("m1"),
+                        C4.class.getDeclaredMethod("m1", int.class, String[].class),
+                        C4.class.getDeclaredMethod("m1", int[][].class, String[][].class)));
         } catch (NoSuchMethodException e) {
             fail();
         }
@@ -144,7 +141,7 @@ public class ReflectionsTest {
     public void testConverters() {
         try {
             assertThat(reflections.getConverters(C2.class, C3.class),
-                    are(C4.class.getMethod("c2toC3", C2.class)));
+                    are(C4.class.getDeclaredMethod("c2toC3", C2.class)));
         } catch (NoSuchMethodException e) {
             fail();
         }
@@ -158,7 +155,7 @@ public class ReflectionsTest {
                 .setScanners(
                         new SubTypesScanner().filterResultsBy(filter),
                         new TypeAnnotationsScanner().filterResultsBy(filter))
-                .setUrls(asList(ClasspathHelper.getUrlForClass(TestModel.class))));
+                .setUrls(asList(ClasspathHelper.getUrlForName(TestModel.class))));
 
         String path = getUserDir() + "/target/test-classes" + "/META-INF/reflections/testModel-reflections.xml";
         testModelReflections.save(path);
@@ -169,7 +166,7 @@ public class ReflectionsTest {
 
     @Test
     public void collectInputStream() {
-        final Iterable<Vfs.File> xmls = Vfs.findFiles(Arrays.asList(ClasspathHelper.getUrlForClass(ReflectionsTest.class)), new Predicate<Vfs.File>() {
+        final Iterable<Vfs.File> xmls = Vfs.findFiles(Arrays.asList(ClasspathHelper.getUrlForName(ReflectionsTest.class)), new Predicate<Vfs.File>() {
             public boolean apply(Vfs.File input) {
                 return input.getName().endsWith(".xml");
             }
@@ -178,7 +175,7 @@ public class ReflectionsTest {
         reflections = new Reflections();
         for (Vfs.File xml : xmls) {
             try {
-                reflections.collect(xml.getInputStream());
+                reflections.collect(xml.openInputStream());
             } catch (IOException e) {
                 throw new RuntimeException("", e);
             }
@@ -195,7 +192,7 @@ public class ReflectionsTest {
                 .setScanners(
                         new SubTypesScanner().filterResultsBy(filter),
                         new TypeAnnotationsScanner().filterResultsBy(filter))
-                .setUrls(asList(ClasspathHelper.getUrlForClass(TestModel.class))));
+                .setUrls(asList(ClasspathHelper.getUrlForName(TestModel.class))));
 
         String path = getUserDir() + "/target/test-classes" + "/META-INF/reflections/testModel-reflections.json";
         
@@ -228,7 +225,7 @@ public class ReflectionsTest {
         Reflections reflections = new Reflections(new ConfigurationBuilder()
                 .filterInputsBy(filter)
                 .setScanners(new ResourcesScanner())
-                .setUrls(asList(ClasspathHelper.getUrlForClass(TestModel.class))));
+                .setUrls(asList(ClasspathHelper.getUrlForName(TestModel.class))));
 
         Set<String> resolved = reflections.getResources(Pattern.compile(".*resource1-reflections\\.xml"));
         Assert.assertThat(resolved, are("META-INF/reflections/resource1-reflections.xml"));

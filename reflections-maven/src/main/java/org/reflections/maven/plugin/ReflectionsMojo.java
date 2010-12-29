@@ -1,6 +1,5 @@
 package org.reflections.maven.plugin;
 
-import com.google.common.base.Supplier;
 import com.google.common.collect.Sets;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
@@ -22,8 +21,6 @@ import java.net.URL;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 /** maven plugin for Reflections
  * <p> use it by configuring the pom with:
@@ -135,11 +132,7 @@ public class ReflectionsMojo extends MvnInjectableMojoSupport {
         configurationBuilder.setScanners(scannerInstances.toArray(new Scanner[]{}));
 
         if (parallel != null && parallel.equals(Boolean.TRUE)) {
-            configurationBuilder.setExecutorServiceSupplier(new Supplier<ExecutorService>() {
-                public ExecutorService get() {
-                    return Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
-                }
-            });
+            configurationBuilder.useParallelExecutor();
         }
 
         Reflections reflections = new Reflections(configurationBuilder);

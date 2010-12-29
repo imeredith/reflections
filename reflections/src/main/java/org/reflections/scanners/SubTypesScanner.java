@@ -7,7 +7,7 @@ import java.util.List;
 /** scans for superclass and interfaces of a class, allowing a reverse lookup for subtypes */
 public class SubTypesScanner extends AbstractScanner {
 
-    public SubTypesScanner() {
+    {
         filterResultsBy(new FilterBuilder().exclude(Object.class.getName())); //exclude direct Object subtypes by default
     }
 

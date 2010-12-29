@@ -28,7 +28,7 @@ public class JavaCodeSerializerTest {
         Reflections reflections = new Reflections(new ConfigurationBuilder()
                 .filterInputsBy(filter)
                 .setScanners(new TypesScanner(), new TypeElementsScanner())
-                .setUrls(asList(ClasspathHelper.getUrlForClass(TestModel.class))));
+                .setUrls(asList(ClasspathHelper.getUrlForName(TestModel.class))));
 
         //no re-serializing
         Set<String> stringSet = reflections.getStore().get(TypesScanner.class).keySet();

@@ -31,7 +31,7 @@ public class ZipFile implements Vfs.File {
         return entry.getName();
     }
 
-    public InputStream getInputStream() throws IOException {
+    public InputStream openInputStream() throws IOException {
         return dir.zipFile.getInputStream(entry);
     }
 

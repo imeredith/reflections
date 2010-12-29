@@ -1,6 +1,7 @@
 package org.reflections;
 
 import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -24,14 +25,13 @@ import java.net.URL;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.regex.Pattern;
 
 import static java.lang.String.format;
-import static org.reflections.util.Utils.*;
+import static org.reflections.util.Utils.forNames;
 
 /**
  * Reflections one-stop-shop object
@@ -57,7 +57,7 @@ import static org.reflections.util.Utils.*;
  *      new Reflections(
  *          new ConfigurationBuilder()
  *              .filterInputsBy(new FilterBuilder().include("your project's common package prefix here..."))
- *              .setUrls(ClasspathHelper.getUrlsForCurrentClasspath())
+ *              .setUrls(ClasspathHelper.getUrlsForClassloader())
  *              .setScanners(new SubTypesScanner(), new TypeAnnotationsScanner().filterResultsBy(myClassAnnotationsFilter)));
  * </pre>
  * and than use the convenient methods to query the metadata, such as {@link #getSubTypesOf},
@@ -76,7 +76,7 @@ public class Reflections extends ReflectionUtils {
 
     /**
      * constructs a Reflections instance and scan according to given {@link Configuration}
-     * <p>it is prefered to use {@link org.reflections.util.ConfigurationBuilder}
+     * <p>it is preferred to use {@link org.reflections.util.ConfigurationBuilder}
      */
     public Reflections(final Configuration configuration) {
         this.configuration = configuration;
@@ -93,21 +93,27 @@ public class Reflections extends ReflectionUtils {
 
     /**
      * a convenient constructor for scanning within a package prefix
-     * <p>if no scanners supplied, TypeAnnotationsScanner and SubTypesScanner are used by default
+     * <p>this actually create a {@link Configuration} with:
+     * <br> - urls that contain resources with name {@code prefix}
+     * <br> - acceptsInput where name starts with the given {@code prefix}
+     * <br> - scanners set to the given {@code scanners}, otherwise defaults to {@link TypeAnnotationsScanner} and {@link SubTypesScanner}.
+     * <br> - scanner results filter is set to accept results matching given {@code prefix}
      */
     public Reflections(final String prefix, final Scanner... scanners) {
         this(new ConfigurationBuilder() {
-            final Predicate<String> filter = new FilterBuilder.Include(FilterBuilder.prefix(prefix));
-
             {
+                setUrls(ClasspathHelper.getUrlsForName(prefix));
+                final Predicate<String> filter = new FilterBuilder.Include(FilterBuilder.prefix(prefix));
                 filterInputsBy(filter);
-                setUrls(ClasspathHelper.getUrlsForPackagePrefix(prefix));
-                if (scanners == null || scanners.length == 0) {
+                if (scanners != null && scanners.length != 0) {
+                    for (Scanner scanner : scanners) {
+                        scanner.filterResultsBy(Predicates.<String>and(filter, scanner.getResultFilter()));
+                    }
+                    setScanners(scanners);
+                } else {
                     setScanners(
                             new TypeAnnotationsScanner().filterResultsBy(filter),
                             new SubTypesScanner().filterResultsBy(filter));
-                } else {
-                    setScanners(scanners);
                 }
             }
         });
@@ -123,25 +129,25 @@ public class Reflections extends ReflectionUtils {
         if (configuration.getUrls() == null || configuration.getUrls().isEmpty()) {
             log.error("given scan urls are empty. set urls in the configuration");
             return;
+        } else {
+            if (log.isDebugEnabled()) {
+                StringBuilder urls = new StringBuilder();
+                for (URL url : configuration.getUrls()) {
+                    urls.append("\t").append(url.toExternalForm()).append("\n");
+                }
+                log.debug("going to scan these urls:\n" + urls);
+            }
         }
 
         long time = System.currentTimeMillis();
 
-        ExecutorService executorService = configuration.getExecutorServiceSupplier() != null ? configuration.getExecutorServiceSupplier().get() : null;
+        ExecutorService executorService = configuration.getExecutorService();
 
         if (executorService == null) {
             for (URL url : configuration.getUrls()) {
                 try {
                     for (final Vfs.File file : Vfs.fromURL(url).getFiles()) {
-                        String input = file.getRelativePath().replace('/', '.');
-
-                        if (configuration.acceptsInput(input)) {
-                            for (Scanner scanner : configuration.getScanners()) {
-                                if (scanner.acceptsInput(input)) {
-                                    scanner.scan(file);
-                                }
-                            }
-                        }
+                        scan(file);
                     }
                 } catch (ReflectionsException e) {
                     log.error("could not create Vfs.Dir from url. ignoring the exception and continuing", e);
@@ -157,14 +163,7 @@ public class Reflections extends ReflectionUtils {
                         for (final Vfs.File file : Vfs.fromURL(url).getFiles()) {
                             futures.add(executorService.submit(new Runnable() {
                                 public void run() {
-                                    String input = file.getRelativePath().replace('/', '.');
-                                    if (configuration.acceptsInput(input)) {
-                                        for (Scanner scanner : configuration.getScanners()) {
-                                            if (scanner.acceptsInput(input)) {
-                                                scanner.scan(file);
-                                            }
-                                        }
-                                    }
+                                    scan(file);
                                 }
                             }));
                         }
@@ -190,6 +189,17 @@ public class Reflections extends ReflectionUtils {
                 time, configuration.getUrls().size(), keys, values,
                 executorService != null && executorService instanceof ThreadPoolExecutor ?
                         format("[using %d cores]", ((ThreadPoolExecutor) executorService).getMaximumPoolSize()) : ""));
+    }
+    
+    private void scan(Vfs.File file) {
+        String input = file.getRelativePath().replace('/', '.');
+        if (configuration.acceptsInput(input)) {
+            for (Scanner scanner : configuration.getScanners()) {
+                if (scanner.acceptsInput(input)) {
+                    scanner.scan(file);
+                }
+            }
+        }
     }
 
     /** collect saved Reflection xml resources and merge it into a Reflections instance
@@ -218,10 +228,10 @@ public class Reflections extends ReflectionUtils {
      * it is preferred to use a designated resource prefix (for example META-INF/reflections but not just META-INF),
      * so that relevant urls could be found much faster
      */
-    public Reflections collect(String packagePrefix, Predicate<String> resourceNameFilter, final Serializer serializer) {
-        for (final Vfs.File file : Vfs.findFiles(ClasspathHelper.getUrlsForPackagePrefix(packagePrefix), packagePrefix, resourceNameFilter)) {
+    public Reflections collect(final String packagePrefix, final Predicate<String> resourceNameFilter, final Serializer serializer) {
+        for (final Vfs.File file : Vfs.findFiles(ClasspathHelper.getUrlsForName(packagePrefix), packagePrefix, resourceNameFilter)) {
             try {
-                merge(serializer.read(file.getInputStream()));
+                merge(serializer.read(file.openInputStream()));
                 log.info("Reflections collected metadata from " + file + " using serializer " + serializer.getClass().getName());
             } catch (IOException e) {
                 throw new ReflectionsException("could not merge " + file, e);
@@ -232,8 +242,7 @@ public class Reflections extends ReflectionUtils {
     }
 
     /** merges saved Reflections resources from the given input stream, using the serializer configured in this instance's Configuration
-     *
-     * useful if you know the serialized resource location and prefer not to look it up the classpath
+     * <br> useful if you know the serialized resource location and prefer not to look it up the classpath
      * */
     public Reflections collect(final InputStream inputStream) {
         try {

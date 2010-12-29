@@ -30,7 +30,7 @@ public class SystemFile implements Vfs.File {
         return null; //should not get here
     }
 
-    public InputStream getInputStream() {
+    public InputStream openInputStream() {
         try {
             return new FileInputStream(file);
         } catch (FileNotFoundException e) {

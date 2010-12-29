@@ -1,8 +1,0 @@
-integration instruction for jboss, spring, resteasy
-    - get other fw that scan classpath on bootstrap
-
-add jboss vfs support as Vfs.UrlType
-add PackageAnnotationsScanner
-add ant task
-add support for constructor annotations, allow query using getMethodsAnnotatedWith / getElementsAnnotatedWith
-? add ElementAnnotationsScanner (packages, classs, fields, methods)

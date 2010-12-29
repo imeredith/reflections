@@ -4,7 +4,7 @@
     <parent>
         <groupId>org.reflections</groupId>
         <artifactId>reflections-parent</artifactId>
-        <version>0.9.5-RC2</version>
+        <version>0.9.5-RC3</version>
     </parent>
 
     <artifactId>reflections</artifactId>
@@ -60,6 +60,16 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- effectively needed when using JBoss6UrlType -->
+        <dependency>
+            <groupId>org.jboss</groupId>
+            <artifactId>jboss-vfs</artifactId>
+            <version>3.0.0.CR5</version>
+            <!--<scope>runtime</scope>-->
+            <optional>true</optional>
+        </dependency>
+
+        <!--todo remove-->
         <!-- effectively might be needed for war environments -->
         <dependency>
             <groupId>javax.servlet</groupId>
@@ -76,4 +86,13 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <!-- effectively needed when using JBoss6UrlType -->
+    <repositories>
+        <repository>
+            <id>jboss maven2 repository</id>
+            <url>http://repository.jboss.org/maven2/</url>
+        </repository>
+
+    </repositories>
 </project>

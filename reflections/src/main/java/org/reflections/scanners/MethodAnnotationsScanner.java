@@ -2,9 +2,6 @@ package org.reflections.scanners;
 
 import java.util.List;
 
-/**
- *
- */
 @SuppressWarnings({"unchecked"})
 /** scans for method's annotations */
 public class MethodAnnotationsScanner extends AbstractScanner {

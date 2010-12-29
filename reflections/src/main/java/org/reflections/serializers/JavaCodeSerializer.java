@@ -40,7 +40,7 @@ import static org.reflections.util.Utils.*;
  * </pre>
  * <p> use the different resolve methods to resolve the serialized element into Class, Field or Method. for example:
  * <pre>
- *  Class&#60? extends IMethod> imethod = MyTestModelStore.org.reflections.TestModel$C4.m1_int_java$lang$String$$$$.class;
+ *  Class&#60? extends IMethod> imethod = MyTestModelStore.org.reflections.TestModel$C4.m1.class;
  *  Method method = JavaCodeSerializer.resolve(imethod);
  * </pre>
  * <p>depends on Reflections configured with {@link org.reflections.scanners.TypesScanner} and {@link org.reflections.scanners.TypeElementsScanner}

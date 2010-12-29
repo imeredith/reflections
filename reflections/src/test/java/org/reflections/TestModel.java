@@ -34,7 +34,7 @@ public interface TestModel {
         @AF1("2") protected String f2;
         protected String f3;
 
-        @AM1("1") public void m1() {}
+        @AM1("1") protected void m1() {}
         @AM1("1") public void m1(int integer, String... strings) {}
         @AM1("1") public void m1(int[][] integer, String[][] strings) {}
         @AM1("2") public String m3() {return null;}

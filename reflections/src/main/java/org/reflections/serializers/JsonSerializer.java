@@ -42,9 +42,10 @@ public class JsonSerializer implements Serializer {
             throw new RuntimeException(e);
         } finally {
             try {
-                writer.close();
-            } catch (IOException e) {
-                throw new RuntimeException("", e);
+                if (writer != null) writer.close();
+            } catch (Exception e) {
+                //noinspection ThrowFromFinallyBlock
+                throw new RuntimeException(e);
             }
         }
         return null;

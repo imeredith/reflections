@@ -6,7 +6,6 @@ import java.util.List;
 @SuppressWarnings({"unchecked"})
 public class ConvertersScanner extends AbstractScanner {
     public void scan(final Object cls) {
-        String className = getMetadataAdapter().getClassName(cls);
         List<Object> methods = getMetadataAdapter().getMethods(cls);
         for (Object method : methods) {
             List<String> parameterNames = getMetadataAdapter().getParameterNames(method);

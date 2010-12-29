@@ -9,6 +9,7 @@ import org.reflections.util.Utils;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.util.ArrayList;
@@ -24,7 +25,7 @@ import java.util.List;
  *      Vfs.Dir dir = Vfs.fromURL(url);
  *      Iterable<Vfs.File> files = dir.getFiles();
  *      for (Vfs.File file : files) {
- *          InputStream is = file.getInputStream();
+ *          InputStream is = file.openInputStream();
  *      }
  * </pre>
  * <p>use {@link org.reflections.vfs.Vfs#findFiles(java.util.Collection, com.google.common.base.Predicate)} to get an
@@ -60,7 +61,7 @@ public abstract class Vfs {
         String getName();
         String getRelativePath();
         String getFullPath();
-        InputStream getInputStream() throws IOException;
+        InputStream openInputStream() throws IOException;
     }
 
     /** a matcher and factory for a url */
@@ -162,40 +163,11 @@ public abstract class Vfs {
     }
 
     //
-    //todo remove this method?
     public static String normalizePath(final URL url) {
-        return normalizePath(url.toExternalForm());
-    }
-
-    //todo remove this method?
-    //todo this should be removed and normaliztion should happen per UrlType and it is it's responsibility
-    public static String normalizePath(final String urlPath) {
-        String path;
-
         try {
-            path = URLDecoder.decode(urlPath, "UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException(e);
+            return url.toURI().getPath();
+        } catch (URISyntaxException e) {
+            throw new RuntimeException("", e);
         }
-
-        path = path.replace("\\", "/"); //normalize separators
-        while (path.contains("//")) {path = path.replaceAll("//", "/");} //remove multiple slashes
-        if (path.contains(":")) { //remove protocols
-            String[] protocols = path.split(":");
-            if (protocols.length > 1) {
-                String maybeDrive = protocols[protocols.length - 2].replace("\\","").replace("/","");
-                String lastSegment = protocols[protocols.length - 1];
-                if (maybeDrive.length() == 1) {
-                    //leave the windows drive character if exists
-                    path = maybeDrive.toLowerCase() + ":" + lastSegment;
-                } else {
-                    path = lastSegment;
-                }
-            }
-        }
-        if (path.contains("!")) {path = path.substring(0, path.lastIndexOf("!"));} //remove jar ! sign
-        while(path.endsWith("/")) {path = path.substring(0, path.length() - 1);} //remove extra / at the end
-
-        return path;
     }
 }

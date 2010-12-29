@@ -2,17 +2,20 @@ package org.reflections.util;
 
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
-import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Sets;
 import org.reflections.Configuration;
-import org.reflections.adapters.*;
+import org.reflections.adapters.JavassistAdapter;
+import org.reflections.adapters.MetadataAdapter;
+import org.reflections.scanners.Scanner;
+import org.reflections.scanners.SubTypesScanner;
+import org.reflections.scanners.TypeAnnotationsScanner;
 import org.reflections.serializers.Serializer;
 import org.reflections.serializers.XmlSerializer;
-import org.reflections.scanners.*;
 
 import java.net.URL;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -24,34 +27,22 @@ import java.util.concurrent.Executors;
  *      new Reflections(
  *          new ConfigurationBuilder()
  *              .filterInputsBy(new FilterBuilder().include("your project's common package prefix here..."))
- *              .setUrls(ClasspathHelper.getUrlsForCurrentClasspath())
+ *              .setUrls(ClasspathHelper.getUrlsForClassloader())
  *              .setScanners(new SubTypesScanner(), new TypeAnnotationsScanner().filterResultsBy(myClassAnnotationsFilter)));
  * </pre>
- * <p>default constructor sets reasonable defaults, such as accept all for {@link #inputsFilter}
- * , scanners set to {@link org.reflections.scanners.SubTypesScanner}, {@link org.reflections.scanners.TypeAnnotationsScanner},
- * executor is null - that is - scanning is done in a simple for loop,
- * lazily using {@link org.reflections.serializers.XmlSerializer}
+ * <br>{@link #executorService} is used optionally used for parallel scanning. if value is null then scanning is done in a simple for loop
+ * <p>defaults: accept all for {@link #inputsFilter},
+ * {@link #executorService} is null,
+ * {@link #serializer} is {@link org.reflections.serializers.XmlSerializer}
  */
 @SuppressWarnings({"RawUseOfParameterizedType"})
 public class ConfigurationBuilder implements Configuration {
-    private Set<Scanner> scanners;
+    private final Set<Scanner> scanners = new HashSet<Scanner>();
     private Set<URL> urls;
-    private MetadataAdapter metadataAdapter;
-    private Predicate<String> inputsFilter;
+    private MetadataAdapter metadataAdapter = new JavassistAdapter();
+    private Predicate<String> inputsFilter = Predicates.alwaysTrue();
     private Serializer serializer;
-    private Supplier<ExecutorService> executorServiceSupplier;
-
-    public ConfigurationBuilder() {
-        //defaults
-        scanners = Sets.<Scanner>newHashSet(new SubTypesScanner(), new TypeAnnotationsScanner());
-        metadataAdapter = new JavassistAdapter();
-        inputsFilter = Predicates.alwaysTrue();
-        executorServiceSupplier = new Supplier<ExecutorService>() {
-            public ExecutorService get() {
-                return Executors.newSingleThreadExecutor();
-            }
-        };
-    }
+    private ExecutorService executorService;
 
     public Set<Scanner> getScanners() {
 		return scanners;
@@ -59,7 +50,7 @@ public class ConfigurationBuilder implements Configuration {
 
     /** set the scanners instances for scanning different metadata */
     public ConfigurationBuilder setScanners(final Scanner... scanners) {
-        this.scanners = ImmutableSet.of(scanners);
+        this.scanners.addAll(Arrays.asList(scanners));
         return this;
     }
 
@@ -104,17 +95,17 @@ public class ConfigurationBuilder implements Configuration {
         return this;
     }
 
-    public Supplier<ExecutorService> getExecutorServiceSupplier() {
-        return executorServiceSupplier;
+    public ExecutorService getExecutorService() {
+        return executorService;
     }
 
     /** sets the executor service used for scanning. */
-    public ConfigurationBuilder setExecutorServiceSupplier(Supplier<ExecutorService> executorServiceSupplier) {
-        this.executorServiceSupplier = executorServiceSupplier;
+    public ConfigurationBuilder setExecutorService(ExecutorService executorService) {
+        this.executorService = executorService;
         return this;
     }
 
-    /** sets the executor service used for scanning to ThreadPoolExecutor with core size as {@link java.lang.Runtime#getRuntime#availableProcessors()}
+    /** sets the executor service used for scanning to ThreadPoolExecutor with core size as {@link java.lang.Runtime#availableProcessors()}
      * <p>default is ThreadPoolExecutor with a single core */
     public ConfigurationBuilder useParallelExecutor() {
         return useParallelExecutor(Runtime.getRuntime().availableProcessors());
@@ -123,10 +114,7 @@ public class ConfigurationBuilder implements Configuration {
     /** sets the executor service used for scanning to ThreadPoolExecutor with core size as the given availableProcessors parameter
      * <p>default is ThreadPoolExecutor with a single core */
     public ConfigurationBuilder useParallelExecutor(final int availableProcessors) {
-        setExecutorServiceSupplier(new Supplier<ExecutorService>() { public ExecutorService get() {
-                return Executors.newFixedThreadPool(availableProcessors);
-            }
-        });
+        setExecutorService(Executors.newFixedThreadPool(availableProcessors));
         return this;
     }
 
