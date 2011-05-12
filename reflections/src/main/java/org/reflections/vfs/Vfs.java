@@ -8,10 +8,8 @@ import org.reflections.util.Utils;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -167,7 +165,7 @@ public abstract class Vfs {
         try {
             return url.toURI().getPath();
         } catch (URISyntaxException e) {
-            throw new RuntimeException("", e);
+            throw new RuntimeException("could not normalize path of " + url, e);
         }
     }
 }

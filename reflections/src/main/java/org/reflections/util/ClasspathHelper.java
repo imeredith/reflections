@@ -29,10 +29,11 @@ public abstract class ClasspathHelper {
         try {
             final Set<URL> result = new HashSet<URL>();
 
-            final Enumeration<URL> urls = Utils.getContextClassLoader().getResources(name.replace(".", "/"));
+            String resourceName = name.replace(".", "/");
+            final Enumeration<URL> urls = Utils.getContextClassLoader().getResources(resourceName);
             while (urls.hasMoreElements()) {
                 URL url = urls.nextElement();
-                result.add(new URL(url.toExternalForm().substring(0, url.toExternalForm().lastIndexOf(name))));
+                result.add(new URL(url.toExternalForm().substring(0, url.toExternalForm().lastIndexOf(resourceName))));
             }
 
             return result;

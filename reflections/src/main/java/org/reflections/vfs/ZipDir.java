@@ -1,13 +1,13 @@
 package org.reflections.vfs;
 
 import com.google.common.collect.AbstractIterator;
+import org.reflections.ReflectionsException;
 
-import java.io.File;
-import java.util.zip.ZipEntry;
-import java.util.Iterator;
-import java.util.Enumeration;
-import java.net.URL;
 import java.io.IOException;
+import java.net.URL;
+import java.util.Enumeration;
+import java.util.Iterator;
+import java.util.zip.ZipEntry;
 
 /** an implementation of {@link org.reflections.vfs.Vfs.Dir} for {@link java.util.zip.ZipFile} */
 public class ZipDir implements Vfs.Dir {

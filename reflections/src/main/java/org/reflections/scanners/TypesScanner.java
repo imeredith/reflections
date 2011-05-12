@@ -23,7 +23,7 @@ public class TypesScanner extends AbstractScanner {
             Object cls = getMetadataAdapter().createClassObject(inputStream);
             scan(cls, file);
         } catch (IOException e) {
-            throw new RuntimeException("could not create class file from " + file.getName(), e);
+            throw new ReflectionsException("could not create class file from " + file.getName(), e);
         } finally {
             try {
                 if (inputStream != null) {

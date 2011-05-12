@@ -80,12 +80,12 @@ public class Reflections extends ReflectionUtils {
      */
     public Reflections(final Configuration configuration) {
         this.configuration = configuration;
-        store = new Store();
+        store = new Store(configuration);
 
         //inject to scanners
         for (Scanner scanner : configuration.getScanners()) {
             scanner.setConfiguration(configuration);
-            scanner.setStore(store.get(scanner.getClass()));
+            scanner.setStore(store.get(scanner));
         }
 
         scan();
@@ -120,8 +120,7 @@ public class Reflections extends ReflectionUtils {
     }
 
     protected Reflections() {
-        configuration = new ConfigurationBuilder();
-        store = new Store();
+        this(new ConfigurationBuilder());
     }
 
     //
@@ -195,8 +194,10 @@ public class Reflections extends ReflectionUtils {
         String input = file.getRelativePath().replace('/', '.');
         if (configuration.acceptsInput(input)) {
             for (Scanner scanner : configuration.getScanners()) {
-                if (scanner.acceptsInput(input)) {
-                    scanner.scan(file);
+                try {
+                    if (scanner.acceptsInput(input)) { scanner.scan(file); }
+                } catch (Exception e) {
+                    log.warn("could not scan file " + file.getFullPath() + " with scanner " + scanner.getName(), e);
                 }
             }
         }

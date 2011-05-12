@@ -36,7 +36,7 @@ public abstract class AbstractScanner implements Scanner {
             Object cls = configuration.getMetadataAdapter().createClassObject(inputStream);
             scan(cls);
         } catch (IOException e) {
-            throw new RuntimeException("could not create class file from " + file.getName(), e);
+            throw new ReflectionsException("could not create class file from " + file.getName(), e);
         } finally {
             try {
                 if (inputStream != null) {

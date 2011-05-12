@@ -5,14 +5,14 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
 import com.google.common.collect.*;
 import org.reflections.scanners.*;
+import org.reflections.scanners.Scanner;
 import org.reflections.util.Utils;
 
 import java.lang.annotation.Inherited;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.regex.Pattern;
+
+import static com.google.common.collect.Multimaps.*;
 
 /**
  * stores metadata information in multimaps
@@ -22,31 +22,65 @@ import java.util.regex.Pattern;
  */
 public class Store {
 
-	private final Map<String/*indexName*/, Multimap<String, String>> storeMap = new MapMaker().makeComputingMap(new Function<String, Multimap<String, String>>() {
-		public Multimap<String, String> apply(String indexName) {
-			return Multimaps.newSetMultimap(new HashMap<String, Collection<String>>(), new Supplier<Set<String>>() {
-				public Set<String> get() {
-					return Sets.newHashSet();
-				}
-			});
-		}
-	});
+	private final Map<String/*indexName*/, Multimap<String, String>> storeMap;
+
+    public Store(Configuration configuration) {
+        this(configuration.getExecutorService() != null);
+    }
+
+    protected Store(boolean parallelExecutor) {
+        if (parallelExecutor) {
+            storeMap = new MapMaker().makeComputingMap(new Function<String, Multimap<String, String>>() {
+                public Multimap<String, String> apply(String indexName) {
+                    return synchronizedSetMultimap(newSetMultimap(new HashMap<String, Collection<String>>(), new Supplier<Set<String>>() {
+                        public Set<String> get() {
+                            return Sets.newHashSet();
+                        }
+                    }));
+                }
+            });
+        } else {
+            storeMap = new MapMaker().makeComputingMap(new Function<String, Multimap<String, String>>() {
+                public Multimap<String, String> apply(String indexName) {
+                    return Multimaps.newSetMultimap(new HashMap<String, Collection<String>>(), new Supplier<Set<String>>() {
+                        public Set<String> get() {
+                            return Sets.newHashSet();
+                        }
+                    });
+                }
+            });
+        }
+    }
+
+    protected Store() {
+        this(false);
+    }
 
     /** get the values of given keys stored for the given scanner class */
     public Set<String> get(Class<? extends Scanner> scannerClass, String... keys) {
         Set<String> result = Sets.newHashSet();
 
-        Multimap<String, String> map = storeMap.get(scannerClass.getName());
+        Multimap<String, String> map = get(scannerClass);
         for (String key : keys) {
             result.addAll(map.get(key));
         }
 
-        return ImmutableSet.copyOf(result);
+        return result;
+    }
+
+    /** return the multimap store of the given scanner. not immutable */
+	public Multimap<String, String> get(Scanner scanner) {
+        return get(scanner.getClass());
     }
 
     /** return the multimap store of the given scanner class. not immutable */
-	public Multimap<String, String> get(Class<? extends Scanner> scannerClass) {
-        return storeMap.get(scannerClass.getName());
+    public Multimap<String, String> get(Class<? extends Scanner> scannerClass) {
+        return get(scannerClass.getName());
+    }
+
+    /** return the multimap store of the given scanner name. not immutable */
+    public Multimap<String, String> get(final String scannerName) {
+        return storeMap.get(scannerName);
     }
 
     /** return the store map. not immutable*/
@@ -55,11 +89,11 @@ public class Store {
     }
 
     /** merges given store into this */
-	void merge(final Store outer) {
-		for (String indexName : outer.storeMap.keySet()) {
-			this.storeMap.get(indexName).putAll(outer.storeMap.get(indexName));
-		}
-	}
+    void merge(final Store outer) {
+        for (String indexName : outer.storeMap.keySet()) {
+            this.storeMap.get(indexName).putAll(outer.get(indexName));
+        }
+    }
 
     /** return the keys count */
     public Integer getKeysCount() {
@@ -82,7 +116,7 @@ public class Store {
     //query
     /** get sub types of a given type */
     public Set<String> getSubTypesOf(final String type) {
-        ImmutableSet.Builder<String> result = ImmutableSet.builder();
+        Set<String> result = new HashSet<String>();
 
         Set<String> subTypes = get(SubTypesScanner.class, type);
         result.addAll(subTypes);
@@ -91,7 +125,7 @@ public class Store {
             result.addAll(getSubTypesOf(subType));
         }
 
-        return result.build();
+        return result;
     }
 
     /**
@@ -111,41 +145,41 @@ public class Store {
      * Also, this meta-annotation causes annotations to be inherited only from superclasses; annotations on implemented interfaces have no effect.</i>
      */
     public Set<String> getTypesAnnotatedWith(final String annotation, boolean honorInherited) {
-        final ImmutableSet.Builder<String> builder = ImmutableSet.builder();
+        final Set<String> result = new HashSet<String>();
 
         if (isAnnotation(annotation)) {
             final Set<String> types = get(TypeAnnotationsScanner.class, annotation);
-            builder.addAll(types); //directly annotated
+            result.addAll(types); //directly annotated
 
             if (honorInherited && isInheritedAnnotation(annotation)) {
                 //when honoring @Inherited, meta-annotation should only effect annotated super classes and it's sub types
                 for (String type : types) {
                     if (isClass(type)) {
-                        builder.addAll(getSubTypesOf(type));
+                        result.addAll(getSubTypesOf(type));
                     }
                 }
             } else if (!honorInherited) {
                 //when not honoring @Inherited, meta annotation effects all subtypes, including annotations interfaces and classes
                 for (String type : types) {
                     if (isAnnotation(type)) {
-                        builder.addAll(getTypesAnnotatedWith(annotation, false));
+                        result.addAll(getTypesAnnotatedWith(annotation, false));
                     } else if (hasSubTypes(type)) {
-                        builder.addAll(getSubTypesOf(type));
+                        result.addAll(getSubTypesOf(type));
                     }
                 }
             }
         }
-        return builder.build();
+        return result;
     }
 
     /** get method names annotated with a given annotation */
     public Set<String> getMethodsAnnotatedWith(String annotation) {
-        return ImmutableSet.copyOf(get(MethodAnnotationsScanner.class, annotation));
+        return get(MethodAnnotationsScanner.class, annotation);
     }
 
     /** get fields annotated with a given annotation */
     public Set<String> getFieldsAnnotatedWith(String annotation) {
-        return ImmutableSet.copyOf(get(FieldAnnotationsScanner.class, annotation));
+        return get(FieldAnnotationsScanner.class, annotation);
     }
 
     /** get 'converter' methods that could effectively convert from type 'from' to type 'to' */
