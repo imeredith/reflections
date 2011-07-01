@@ -4,7 +4,7 @@
 
 	<groupId>org.reflections</groupId>
 	<artifactId>reflections-parent</artifactId>
-    <version>0.9.5-RC3</version>
+    <version>0.9.5</version>
 	<packaging>pom</packaging>
 
     <name>Reflections parent</name>
