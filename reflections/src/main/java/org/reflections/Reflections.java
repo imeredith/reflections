@@ -5,9 +5,7 @@ import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import org.reflections.scanners.Scanner;
-import org.reflections.scanners.SubTypesScanner;
-import org.reflections.scanners.TypeAnnotationsScanner;
+import org.reflections.scanners.*;
 import org.reflections.serializers.Serializer;
 import org.reflections.util.ClasspathHelper;
 import org.reflections.util.ConfigurationBuilder;
@@ -31,7 +29,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.regex.Pattern;
 
 import static java.lang.String.format;
-import static org.reflections.util.Utils.forNames;
 
 /**
  * Reflections one-stop-shop object
@@ -57,7 +54,7 @@ import static org.reflections.util.Utils.forNames;
  *      new Reflections(
  *          new ConfigurationBuilder()
  *              .filterInputsBy(new FilterBuilder().include("your project's common package prefix here..."))
- *              .setUrls(ClasspathHelper.getUrlsForClassloader())
+ *              .setUrls(ClasspathHelper.forClassLoader())
  *              .setScanners(new SubTypesScanner(), new TypeAnnotationsScanner().filterResultsBy(myClassAnnotationsFilter)));
  * </pre>
  * and than use the convenient methods to query the metadata, such as {@link #getSubTypesOf},
@@ -66,12 +63,15 @@ import static org.reflections.util.Utils.forNames;
  * <p>in order to save a metadata use {@link #save(String)} or {@link #save(String, org.reflections.serializers.Serializer)}
  * for example with {@link org.reflections.serializers.XmlSerializer} or {@link org.reflections.serializers.JavaCodeSerializer}
  * <p>in order to collect pre saved metadata and avoid re-scanning, use {@link #collect(String, com.google.common.base.Predicate)}
+ * <p>* be aware that when using the constructor new Reflections("my.package"), only urls with prefix 'my.package' will be scanned,
+ * and any transitive classes in other urls will not be scanned (for example if my.package.SomeClass extends other.package.OtherClass,
+ * than the later will not be scanned). in that case specify the urls manually using {@link ConfigurationBuilder}
  * <p><p><p>For Javadoc, source code, and more information about Reflections Library, see http://code.google.com/p/reflections/
  */
 public class Reflections extends ReflectionUtils {
     private static final Logger log = LoggerFactory.getLogger(Reflections.class);
 
-    private final transient Configuration configuration;
+    protected final transient Configuration configuration;
     private Store store;
 
     /**
@@ -102,9 +102,11 @@ public class Reflections extends ReflectionUtils {
     public Reflections(final String prefix, final Scanner... scanners) {
         this(new ConfigurationBuilder() {
             {
-                setUrls(ClasspathHelper.getUrlsForName(prefix));
                 final Predicate<String> filter = new FilterBuilder.Include(FilterBuilder.prefix(prefix));
+
+                setUrls(ClasspathHelper.forPackage(prefix));
                 filterInputsBy(filter);
+
                 if (scanners != null && scanners.length != 0) {
                     for (Scanner scanner : scanners) {
                         scanner.filterResultsBy(Predicates.<String>and(filter, scanner.getResultFilter()));
@@ -119,8 +121,57 @@ public class Reflections extends ReflectionUtils {
         });
     }
 
+    /**
+     * a convenient constructor for scanning within given package prefixes and urls containing given classes.
+     * <p>given urlHints is an array of either String or Class elements, where Strings results in scanning package prefix
+     * and Class results in scanning url that contains that class, for example
+     * <pre>
+     *     new Reflections(new Object[] {"my.package", com.google.inject.Module, "javax.persistence"})
+     * </pre>
+     * would result in scanning packages 'my.package' and 'javax.persistence' and also the url that contains the class of com.google.inject.Module
+     * <p>this actually create a {@link Configuration} with:
+     * <br> - urls that contain resources with name {@code prefix} or that contains given classes
+     * <br> - acceptsInput where name starts with the given {@code prefix} or with the classes package name
+     * <br> - scanners set to the given {@code scanners}, otherwise defaults to {@link TypeAnnotationsScanner} and {@link SubTypesScanner}.
+     * <br> - scanner results filter is set to accept results matching given {@code prefix} or the given classes package name
+     * @param urlHints is an array of either String or Class elements, where Strings results in scanning package prefix and Class results in scanning urls containing the class
+     */
+    public Reflections(final Object[] urlHints, final Scanner... scanners) {
+        this(new ConfigurationBuilder() {
+            {
+                final List<String> prefixes = Lists.newArrayList();
+
+                for (Object urlHint : urlHints) {
+                    if (urlHint instanceof String) {
+                        addUrls(ClasspathHelper.forPackage((String) urlHint));
+                        prefixes.add((String) urlHint);
+                    } else if (urlHint instanceof Class) {
+                        addUrls(ClasspathHelper.forClass((Class) urlHint));
+                        prefixes.add(((Class) urlHint).getPackage().getName());
+                    }
+                }
+
+                final FilterBuilder filter = new FilterBuilder();
+                for (String prefix : prefixes) { filter.include(FilterBuilder.prefix(prefix)); }
+                filterInputsBy(filter);
+
+                if (scanners != null && scanners.length != 0) {
+                    for (Scanner scanner : scanners) {
+                        scanner.filterResultsBy(Predicates.<String>and(filter, scanner.getResultFilter()));
+                    }
+                    setScanners(scanners);
+                } else {
+                    setScanners(
+                            new TypeAnnotationsScanner().filterResultsBy(filter),
+                            new SubTypesScanner().filterResultsBy(filter));
+                }
+            }
+        });
+    }
+
+    //used for serialization
     protected Reflections() {
-        this(new ConfigurationBuilder());
+        configuration = null;
     }
 
     //
@@ -207,7 +258,7 @@ public class Reflections extends ReflectionUtils {
      * <p>by default, resources are collected from all urls that contains the package META-INF/reflections
      * and includes files matching the pattern .*-reflections.xml */
     public static Reflections collect() {
-        return new Reflections().
+        return new Reflections(new ConfigurationBuilder()).
             collect("META-INF/reflections", new FilterBuilder().include(".*-reflections.xml"));
     }
 
@@ -230,12 +281,16 @@ public class Reflections extends ReflectionUtils {
      * so that relevant urls could be found much faster
      */
     public Reflections collect(final String packagePrefix, final Predicate<String> resourceNameFilter, final Serializer serializer) {
-        for (final Vfs.File file : Vfs.findFiles(ClasspathHelper.getUrlsForName(packagePrefix), packagePrefix, resourceNameFilter)) {
+        for (final Vfs.File file : Vfs.findFiles(ClasspathHelper.forPackage(packagePrefix), packagePrefix, resourceNameFilter)) {
+            InputStream inputStream = null;
             try {
-                merge(serializer.read(file.openInputStream()));
+                inputStream = file.openInputStream();
+                merge(serializer.read(inputStream));
                 log.info("Reflections collected metadata from " + file + " using serializer " + serializer.getClass().getName());
             } catch (IOException e) {
                 throw new ReflectionsException("could not merge " + file, e);
+            } finally {
+                Utils.close(inputStream);
             }
         }
 
@@ -288,7 +343,7 @@ public class Reflections extends ReflectionUtils {
      */
     public <T> Set<Class<? extends T>> getSubTypesOf(final Class<T> type) {
         Set<String> subTypes = store.getSubTypesOf(type.getName());
-        return ImmutableSet.copyOf(Utils.<T>forNames(subTypes));
+        return ImmutableSet.copyOf(ReflectionUtils.<T>forNames(subTypes));
     }
 
     /**

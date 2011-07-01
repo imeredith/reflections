@@ -114,7 +114,7 @@ public class VfsTest {
 
     //
     public URL getSomeJar() {
-        Collection<URL> urls = ClasspathHelper.getUrlsForClassloader();
+        Collection<URL> urls = ClasspathHelper.forClassLoader();
         for (URL url : urls) {
             if (url.getFile().endsWith(".jar")) {
                 return url;

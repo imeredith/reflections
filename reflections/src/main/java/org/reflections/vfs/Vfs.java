@@ -145,6 +145,7 @@ public abstract class Vfs {
      * <p>jarfile - creates a {@link org.reflections.vfs.ZipDir} over jar file
      * <p>jarUrl - creates a {@link org.reflections.vfs.ZipDir} over a jar url (contains ".jar!/" in it's name)
      * <p>directory - creates a {@link org.reflections.vfs.SystemDir} over a file system directory
+     * <p>vfsfile and vfszip - creates a {@link org.reflections.vfs.ZipDir} over jboss vfs types
      * */
     public static enum DefaultUrlTypes implements UrlType {
         jarfile {
@@ -157,7 +158,15 @@ public abstract class Vfs {
 
         directory {
             public boolean matches(URL url) {return url.getProtocol().equals("file") && new java.io.File(normalizePath(url)).isDirectory();}
-            public Dir createDir(final URL url) {return new SystemDir(url);}}
+            public Dir createDir(final URL url) {return new SystemDir(url);}},
+
+        vfsfile {
+            public boolean matches(URL url) {return url.getProtocol().equals("vfsfile") && url.toExternalForm().endsWith(".jar");}
+            public Dir createDir(URL url) {return new ZipDir(url.toString().replaceFirst("vfsfile:", "file:"));}},
+
+        vfszip {
+            public boolean matches(URL url) {return url.getProtocol().equals("vfszip") && url.toExternalForm().endsWith(".jar");}
+            public Dir createDir(URL url) {return new ZipDir(url.toString().replaceFirst("vfszip:", "file:"));}}
     }
 
     //

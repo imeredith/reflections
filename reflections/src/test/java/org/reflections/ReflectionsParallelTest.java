@@ -18,7 +18,7 @@ public class ReflectionsParallelTest extends ReflectionsTest {
         Predicate<String> filter = new FilterBuilder().include("org.reflections.TestModel\\$.*");
 
         reflections = new Reflections(new ConfigurationBuilder()
-                .setUrls(asList(ClasspathHelper.getUrlForName(TestModel.class)))
+                .setUrls(asList(ClasspathHelper.forClass(TestModel.class)))
                 .filterInputsBy(filter)
                 .setScanners(
                         new SubTypesScanner().filterResultsBy(filter),

@@ -3,6 +3,8 @@ package org.reflections.util;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import org.reflections.Configuration;
 import org.reflections.adapters.JavassistAdapter;
 import org.reflections.adapters.MetadataAdapter;
@@ -27,7 +29,7 @@ import java.util.concurrent.Executors;
  *      new Reflections(
  *          new ConfigurationBuilder()
  *              .filterInputsBy(new FilterBuilder().include("your project's common package prefix here..."))
- *              .setUrls(ClasspathHelper.getUrlsForClassloader())
+ *              .setUrls(ClasspathHelper.forClassLoader())
  *              .setScanners(new SubTypesScanner(), new TypeAnnotationsScanner().filterResultsBy(myClassAnnotationsFilter)));
  * </pre>
  * <br>{@link #executorService} is used optionally used for parallel scanning. if value is null then scanning is done in a simple for loop
@@ -37,12 +39,15 @@ import java.util.concurrent.Executors;
  */
 @SuppressWarnings({"RawUseOfParameterizedType"})
 public class ConfigurationBuilder implements Configuration {
-    private final Set<Scanner> scanners = new HashSet<Scanner>();
-    private Set<URL> urls;
+    private final Set<Scanner> scanners = Sets.<Scanner>newHashSet(new TypeAnnotationsScanner(), new SubTypesScanner());
+    private Set<URL> urls = Sets.newHashSet();
     private MetadataAdapter metadataAdapter = new JavassistAdapter();
     private Predicate<String> inputsFilter = Predicates.alwaysTrue();
     private Serializer serializer;
     private ExecutorService executorService;
+
+    public ConfigurationBuilder() {
+    }
 
     public Set<Scanner> getScanners() {
 		return scanners;
@@ -62,7 +67,7 @@ public class ConfigurationBuilder implements Configuration {
      * <p>use {@link org.reflections.util.ClasspathHelper} convenient methods to get the relevant urls
      * */
     public ConfigurationBuilder setUrls(final Collection<URL> urls) {
-		this.urls = ImmutableSet.copyOf(urls);
+		this.urls = Sets.newHashSet(urls);
         return this;
 	}
 
@@ -70,9 +75,42 @@ public class ConfigurationBuilder implements Configuration {
      * <p>use {@link org.reflections.util.ClasspathHelper} convenient methods to get the relevant urls
      * */
     public ConfigurationBuilder setUrls(final URL... urls) {
-		this.urls = ImmutableSet.of(urls);
+		this.urls = Sets.newHashSet(urls);
         return this;
 	}
+
+    /** set the urls to be scanned
+     * <p>use {@link org.reflections.util.ClasspathHelper} convenient methods to get the relevant urls
+     * */
+    public ConfigurationBuilder setUrls(final Collection<URL>... urlss) {
+        urls.clear();
+        addUrls(urlss);
+        return this;
+    }
+
+    /** add urls to be scanned
+     * <p>use {@link org.reflections.util.ClasspathHelper} convenient methods to get the relevant urls
+     * */
+    public ConfigurationBuilder addUrls(final Collection<URL> urls) {
+        this.urls.addAll(urls);
+        return this;
+    }
+
+    /** add urls to be scanned
+     * <p>use {@link org.reflections.util.ClasspathHelper} convenient methods to get the relevant urls
+     * */
+    public ConfigurationBuilder addUrls(final URL... urls) {
+        this.urls.addAll(Sets.newHashSet(urls));
+        return this;
+    }
+
+    /** add urls to be scanned
+     * <p>use {@link org.reflections.util.ClasspathHelper} convenient methods to get the relevant urls
+     * */
+    public ConfigurationBuilder addUrls(final Collection<URL>... urlss) {
+        for (Collection<URL> urls : urlss) { addUrls(urls); }
+        return this;
+    }
 
     public MetadataAdapter getMetadataAdapter() {
         return metadataAdapter;

@@ -62,11 +62,13 @@ public class JavassistAdapter implements MetadataAdapter<ClassFile, FieldInfo, M
 
         if (parameterAnnotationsAttribute != null) {
             Annotation[][] annotations = parameterAnnotationsAttribute.getAnnotations();
-            Annotation[] annotation = annotations[parameterIndex];
-            return getAnnotationNames(annotation);
-        } else {
-            return new ArrayList<String>();
+            if (parameterIndex < annotations.length) {
+                Annotation[] annotation = annotations[parameterIndex];
+                return getAnnotationNames(annotation);
+            }
         }
+
+        return new ArrayList<String>();
     }
 
     public String getReturnTypeName(final MethodInfo method) {

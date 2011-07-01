@@ -6,6 +6,7 @@ import com.google.common.collect.Multimap;
 import org.reflections.Configuration;
 import org.reflections.ReflectionsException;
 import org.reflections.adapters.MetadataAdapter;
+import org.reflections.util.Utils;
 import org.reflections.vfs.Vfs;
 
 import java.io.IOException;
@@ -38,14 +39,7 @@ public abstract class AbstractScanner implements Scanner {
         } catch (IOException e) {
             throw new ReflectionsException("could not create class file from " + file.getName(), e);
         } finally {
-            try {
-                if (inputStream != null) {
-                    inputStream.close();
-                }
-            } catch (IOException e) {
-                //noinspection ThrowFromFinallyBlock
-                throw new ReflectionsException("could not close input stream", e);
-            }
+            Utils.close(inputStream);
         }
     }
 

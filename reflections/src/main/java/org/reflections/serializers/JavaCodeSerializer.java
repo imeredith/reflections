@@ -6,6 +6,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 import com.google.common.collect.Sets;
+import org.reflections.ReflectionUtils;
 import org.reflections.Reflections;
 import org.reflections.ReflectionsException;
 import org.reflections.scanners.TypeElementsScanner;
@@ -285,7 +286,7 @@ public class JavaCodeSerializer implements Serializer {
                 paramTypes = new Class<?>[params.length];
                 for (int i = 0; i < params.length; i++) {
                     String typeName = params[i].replace(arrayDescriptor, "[]").replace(pathSeparator, '.');
-                    paramTypes[i] = forName(typeName);
+                    paramTypes[i] = ReflectionUtils.forName(typeName);
                 }
             } else {
                 methodName = methodOgnl;

@@ -48,7 +48,7 @@ public class ReflectionsTest {
                         new FieldAnnotationsScanner().filterResultsBy(filter),
                         new MethodAnnotationsScanner().filterResultsBy(filter),
                         new ConvertersScanner().filterResultsBy(filter))
-                .setUrls(asList(ClasspathHelper.getUrlForName(TestModel.class))));
+                .setUrls(asList(ClasspathHelper.forClass(TestModel.class))));
     }
 
     @Test
@@ -155,7 +155,7 @@ public class ReflectionsTest {
                 .setScanners(
                         new SubTypesScanner().filterResultsBy(filter),
                         new TypeAnnotationsScanner().filterResultsBy(filter))
-                .setUrls(asList(ClasspathHelper.getUrlForName(TestModel.class))));
+                .setUrls(asList(ClasspathHelper.forClass(TestModel.class))));
 
         String path = getUserDir() + "/target/test-classes" + "/META-INF/reflections/testModel-reflections.xml";
         testModelReflections.save(path);
@@ -166,13 +166,13 @@ public class ReflectionsTest {
 
     @Test
     public void collectInputStream() {
-        final Iterable<Vfs.File> xmls = Vfs.findFiles(Arrays.asList(ClasspathHelper.getUrlForName(ReflectionsTest.class)), new Predicate<Vfs.File>() {
+        final Iterable<Vfs.File> xmls = Vfs.findFiles(Arrays.asList(ClasspathHelper.forClass(ReflectionsTest.class)), new Predicate<Vfs.File>() {
             public boolean apply(Vfs.File input) {
                 return input.getName().endsWith(".xml");
             }
         });
 
-        reflections = new Reflections();
+        reflections = new Reflections(new ConfigurationBuilder());
         for (Vfs.File xml : xmls) {
             try {
                 reflections.collect(xml.openInputStream());
@@ -192,14 +192,14 @@ public class ReflectionsTest {
                 .setScanners(
                         new SubTypesScanner().filterResultsBy(filter),
                         new TypeAnnotationsScanner().filterResultsBy(filter))
-                .setUrls(asList(ClasspathHelper.getUrlForName(TestModel.class))));
+                .setUrls(asList(ClasspathHelper.forClass(TestModel.class))));
 
         String path = getUserDir() + "/target/test-classes" + "/META-INF/reflections/testModel-reflections.json";
         
         final JsonSerializer serializer = new JsonSerializer();
         testModelReflections.save(path, serializer);
 
-        reflections = new Reflections().collect("META-INF/reflections",
+        reflections = new Reflections(new ConfigurationBuilder()).collect("META-INF/reflections",
                 new FilterBuilder().include(".*-reflections.json"),
                 serializer);
 
@@ -225,7 +225,7 @@ public class ReflectionsTest {
         Reflections reflections = new Reflections(new ConfigurationBuilder()
                 .filterInputsBy(filter)
                 .setScanners(new ResourcesScanner())
-                .setUrls(asList(ClasspathHelper.getUrlForName(TestModel.class))));
+                .setUrls(asList(ClasspathHelper.forClass(TestModel.class))));
 
         Set<String> resolved = reflections.getResources(Pattern.compile(".*resource1-reflections\\.xml"));
         Assert.assertThat(resolved, are("META-INF/reflections/resource1-reflections.xml"));

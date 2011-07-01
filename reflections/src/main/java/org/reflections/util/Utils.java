@@ -1,9 +1,11 @@
 package org.reflections.util;
 
-import com.google.common.collect.Lists;
+import org.reflections.ReflectionUtils;
 import org.reflections.ReflectionsException;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -13,54 +15,6 @@ import java.util.List;
  * a garbage can of convenient methods
  */
 public abstract class Utils {
-    /** tries to resolve a java type name to a Class */
-    public static Class<?> forName(String typeName) {
-        if (primitiveNames.contains(typeName)) {
-            return primitiveTypes.get(primitiveNames.indexOf(typeName));
-        } else {
-            String type;
-            if (typeName.contains("[")) {
-                int i = typeName.indexOf("[");
-                type = typeName.substring(0, i);
-                String array = typeName.substring(i).replace("]", "");
-
-                if (primitiveNames.contains(type)) {
-                    type = primitiveDescriptors.get(primitiveNames.indexOf(type));
-                } else {
-                    type = "L" + type + ";";
-                }
-
-                type = array + type;
-            } else {
-                type = typeName;
-            }
-
-            try {
-                return Class.forName(type, false, getContextClassLoader());
-            } catch (ClassNotFoundException e) {
-                throw new RuntimeException(e);
-            }
-        }
-    }
-
-    //primitive parallel arrays
-    public final static List<String> primitiveNames = Lists.newArrayList("boolean", "char", "byte", "short", "int", "long", "float", "double", "void");
-    public final static List<Class> primitiveTypes = Lists.<Class>newArrayList(boolean.class, char.class, byte.class, short.class, int.class, long.class, float.class, double.class, void.class);
-    public final static List<String> primitiveDescriptors = Lists.newArrayList("Z", "C", "B", "S", "I", "J", "F", "D", "V");
-
-    /** try to resolve all given string representation of types to a list of java types */
-    public static <T> List<Class<? extends T>> forNames(final Iterable<String> classes) {
-        List<Class<? extends T>> result = new ArrayList<Class<? extends T>>();
-        for (String className : classes) {
-            //noinspection unchecked
-            result.add((Class<? extends T>) forName(className));
-        }
-        return result;
-    }
-
-    public static ClassLoader getContextClassLoader() {
-        return Thread.currentThread().getContextClassLoader();
-    }
 
     public static String repeat(String string, int times) {
         StringBuilder sb = new StringBuilder();
@@ -106,12 +60,12 @@ public abstract class Utils {
             List<Class<?>> result = new ArrayList<Class<?>>(parameterNames.length);
             for (String className1 : parameterNames) {
                 //noinspection unchecked
-                result.add(forName(className1));
+                result.add(ReflectionUtils.forName(className1));
             }
             parameterTypes = result.toArray(new Class<?>[result.size()]);
         }
 
-        Class<?> aClass = forName(className);
+        Class<?> aClass = ReflectionUtils.forName(className);
         try {
             if (descriptor.contains("<init>")) {
 //                return aClass.getConstructor(parameterTypes);
@@ -130,9 +84,14 @@ public abstract class Utils {
         String fieldName = field.substring(field.lastIndexOf('.') + 1);
 
         try {
-            return forName(className).getDeclaredField(fieldName);
+            return ReflectionUtils.forName(className).getDeclaredField(fieldName);
         } catch (NoSuchFieldException e) {
             throw new ReflectionsException("Can't resolve field named " + fieldName, e);
         }
+    }
+
+    public static void close(InputStream inputStream) {
+        try { if (inputStream != null) inputStream.close(); }
+        catch (IOException e) { e.printStackTrace(); }
     }
 }

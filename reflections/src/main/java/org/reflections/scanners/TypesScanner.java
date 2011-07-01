@@ -3,6 +3,7 @@ package org.reflections.scanners;
 import com.google.common.collect.Lists;
 import org.reflections.ReflectionsException;
 import org.reflections.serializers.JavaCodeSerializer;
+import org.reflections.util.Utils;
 import org.reflections.vfs.Vfs;
 
 import java.io.IOException;
@@ -25,14 +26,7 @@ public class TypesScanner extends AbstractScanner {
         } catch (IOException e) {
             throw new ReflectionsException("could not create class file from " + file.getName(), e);
         } finally {
-            try {
-                if (inputStream != null) {
-                    inputStream.close();
-                }
-            } catch (IOException e) {
-                //noinspection ThrowFromFinallyBlock
-                throw new ReflectionsException("could not close input stream", e);
-            }
+            Utils.close(inputStream);
         }
     }
 

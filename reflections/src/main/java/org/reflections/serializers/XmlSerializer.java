@@ -10,6 +10,7 @@ import org.dom4j.io.SAXReader;
 import org.dom4j.io.XMLWriter;
 import org.reflections.Reflections;
 import org.reflections.ReflectionsException;
+import org.reflections.util.ConfigurationBuilder;
 import org.reflections.util.Utils;
 
 import java.io.*;
@@ -34,7 +35,7 @@ import java.util.Map;
 public class XmlSerializer implements Serializer {
 
     public Reflections read(InputStream inputStream) {
-        Reflections reflections = new Reflections() {};
+        Reflections reflections = new Reflections(new ConfigurationBuilder()) {};
 
         Document document;
         try {

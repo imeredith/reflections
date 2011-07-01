@@ -1,8 +1,7 @@
 package org.reflections.util;
 
-import com.google.common.collect.*;
-import org.reflections.ReflectionsException;
-
+import com.google.common.collect.Sets;
+import org.reflections.Reflections;
 import org.reflections.vfs.Vfs;
 
 import javax.servlet.ServletContext;
@@ -11,78 +10,115 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.util.*;
+import java.util.Enumeration;
+import java.util.Set;
 import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
 /**
  * Some classpath convenient methods
- *
  */
 public abstract class ClasspathHelper {
 
-    /** returns urls using {@link ClassLoader#getResources(String)}
-     * <p>getUrlsForName("org") effectively returns urls from classpath with packages starting with org
+    public static ClassLoader[] defaultClassLoaders = new ClassLoader[]{getContextClassLoader(), getStaticClassLoader()};
+
+    /** returns {@code Thread.currentThread().getContextClassLoader()} */
+    public static ClassLoader getContextClassLoader() {
+        return Thread.currentThread().getContextClassLoader();
+    }
+
+    /** returns {@code Reflections.class.getClassLoader()} */
+    public static ClassLoader getStaticClassLoader() {
+        return Reflections.class.getClassLoader();
+    }
+
+    /** returns given classLoaders, if not null,
+     * otherwise defaults to both {@link #getContextClassLoader()} and {@link #getStaticClassLoader()} */
+    public static ClassLoader[] classLoaders(ClassLoader... classLoaders) {
+        return classLoaders != null && classLoaders.length != 0 ? classLoaders : defaultClassLoaders;
+    }
+
+    /** returns urls with resources of package starting with given name, using {@link ClassLoader#getResources(String)}
+     * <p>that is, forPackage("org.reflections") effectively returns urls from classpath with packages starting with {@code org.reflections}
+     * <p>if optional {@link ClassLoader}s are not specified, then both {@link #getContextClassLoader()} and {@link #getStaticClassLoader()} are used for {@link ClassLoader#getResources(String)}
      */
-    public static Set<URL> getUrlsForName(String name) {
-        try {
-            final Set<URL> result = new HashSet<URL>();
+    public static Set<URL> forPackage(String name, ClassLoader... classLoaders) {
+        final Set<URL> result = Sets.newHashSet();
 
-            String resourceName = name.replace(".", "/");
-            final Enumeration<URL> urls = Utils.getContextClassLoader().getResources(resourceName);
-            while (urls.hasMoreElements()) {
-                URL url = urls.nextElement();
-                result.add(new URL(url.toExternalForm().substring(0, url.toExternalForm().lastIndexOf(resourceName))));
-            }
+        final ClassLoader[] loaders = classLoaders(classLoaders);
+        final String resourceName = name.replace(".", "/");
 
-            return result;
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    /** returns the url that contains the given class, using {@link ClassLoader#getResource(String)} */
-    public static URL getUrlForName(Class<?> aClass) {
-        try {
-            final URL url = Utils.getContextClassLoader().getResource(aClass.getName().replace(".", "/") + ".class");
-            return new URL(url.toExternalForm().substring(0, url.toExternalForm().lastIndexOf(aClass.getPackage().getName().replace(".", "/"))));
-        } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
-        }
-    }
-    
-    /** returns urls using {@link java.net.URLClassLoader#getURLs()} up the classloader parent hierarchy */
-    public static Set<URL> getUrlsForClassloader() {
-        Set<URL> result = Sets.newHashSet();
-
-        //is URLClassLoader?
-        ClassLoader loader = Utils.getContextClassLoader();
-        while (loader != null) {
-            if (loader instanceof URLClassLoader) {
-                URL[] urls = ((URLClassLoader) loader).getURLs();
-                if (urls != null) {
-                    Collections.addAll(result, urls);
+        for (ClassLoader classLoader : loaders) {
+            try {
+                final Enumeration<URL> urls = classLoader.getResources(resourceName);
+                while (urls.hasMoreElements()) {
+                    final URL url = urls.nextElement();
+                    final URL normalizedUrl = new URL(url.toExternalForm().substring(0, url.toExternalForm().lastIndexOf(resourceName)));
+                    result.add(normalizedUrl);
                 }
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-            loader = loader.getParent();
         }
 
         return result;
     }
 
-    /** returns urls using java.class.path system property */
-    public static Set<URL> getUrlsForJavaClassPath() {
-        Set<URL> urls = new HashSet<URL>();
+    /** returns the url that contains the given class, using {@link ClassLoader#getResource(String)}
+     * <p>if optional {@link ClassLoader}s are not specified, then either {@link #getContextClassLoader()} or {@link #getStaticClassLoader()} are used for {@link ClassLoader#getResources(String)}
+     * */
+    public static URL forClass(Class<?> aClass, ClassLoader... classLoaders) {
+        final ClassLoader[] loaders = classLoaders(classLoaders);
+        final String resourceName = aClass.getName().replace(".", "/") + ".class";
+
+        for (ClassLoader classLoader : loaders) {
+            try {
+                final URL url = classLoader.getResource(resourceName);
+                if (url != null) {
+                    final String normalizedUrl = url.toExternalForm().substring(0, url.toExternalForm().lastIndexOf(aClass.getPackage().getName().replace(".", "/")));
+                    return new URL(normalizedUrl);
+                }
+            } catch (MalformedURLException e) {
+                e.printStackTrace();
+            }
+        }
+
+        return null;
+    }
+    
+    /** returns urls using {@link java.net.URLClassLoader#getURLs()} up the classloader parent hierarchy
+     * <p>if optional {@link ClassLoader}s are not specified, then both {@link #getContextClassLoader()} and {@link #getStaticClassLoader()} are used for {@link ClassLoader#getResources(String)}
+     * */
+    public static Set<URL> forClassLoader(ClassLoader... classLoaders) {
+        final Set<URL> result = Sets.newHashSet();
+
+        final ClassLoader[] loaders = classLoaders(classLoaders);
+
+        for (ClassLoader classLoader : loaders) {
+            while (classLoader != null) {
+                if (classLoader instanceof URLClassLoader) {
+                    URL[] urls = ((URLClassLoader) classLoader).getURLs();
+                    if (urls != null) {
+                        result.addAll(Sets.<URL>newHashSet(urls));
+                    }
+                }
+                classLoader = classLoader.getParent();
+            }
+        }
+
+        return result;
+    }
+
+    /** returns urls using {@code java.class.path} system property */
+    public static Set<URL> forJavaClassPath() {
+        Set<URL> urls = Sets.newHashSet();
 
         String javaClassPath = System.getProperty("java.class.path");
         if (javaClassPath != null) {
             for (String path : javaClassPath.split(File.pathSeparator)) {
-                try {
-                    urls.add(new File(path).toURI().toURL());
-                } catch (Exception e) {
-                    throw new ReflectionsException("could not create url from " + path, e);
-                }
+                try { urls.add(new File(path).toURI().toURL()); }
+                catch (Exception e) { e.printStackTrace(); }
             }
         }
 
@@ -90,17 +126,19 @@ public abstract class ClasspathHelper {
     }
 
     /** returns urls using {@link ServletContext} in resource path WEB-INF/lib */
-    public static Set<URL> getUrlsForWebInfLib(final ServletContext servletContext) {
+    public static Set<URL> forWebInfLib(final ServletContext servletContext) {
         final Set<URL> urls = Sets.newHashSet();
+
         for (Object urlString : servletContext.getResourcePaths("/WEB-INF/lib")) {
             try { urls.add(servletContext.getResource((String) urlString)); }
             catch (MalformedURLException e) { /*fuck off*/ }
         }
+
         return urls;
     }
 
-    /** returns urls using {@link ServletContext} in resource path WEB-INF/classes */
-    public static URL getUrlForWebInfClasses(final ServletContext servletContext) {
+    /** returns url using {@link ServletContext} in resource path WEB-INF/classes */
+    public static URL forWebInfClasses(final ServletContext servletContext) {
         try {
             final String path = servletContext.getRealPath("/WEB-INF/classes");
             final File file = new File(path);
@@ -111,31 +149,18 @@ public abstract class ClasspathHelper {
         return null;
     }
 
-    /** get the urls that are in the current class path.
+    /** return urls that are in the current class path.
      * attempts to load the jar manifest, if any, and adds to the result any dependencies it finds. */
-    public static Set<URL> getUrlsForManifestsCurrentClasspath() {
-        return getUrlsForManifests(getUrlsForClassloader());
-    }
-
-    /** get the urls that are specified in the manifest of the given urls.
-     * attempts to load the jar manifest, if any, and adds to the result any dependencies it finds. */
-    public static Set<URL> getUrlsForManifests(final Set<URL> urls) {
-        Set<URL> manifestUrls = Sets.newHashSet();
-
-        // determine if any of the URLs are JARs, and get any dependencies
-        for (URL url : urls) {
-            manifestUrls.addAll(getUrlsForManifest(url));
-        }
-
-        // return an immutable instance of the list
-        return ImmutableSet.copyOf(manifestUrls);
+    public static Set<URL> forManifest() {
+        return forManifest(forClassLoader());
     }
 
     /** get the urls that are specified in the manifest of the given url for a jar file.
      * attempts to load the jar manifest, if any, and adds to the result any dependencies it finds. */
-    public static Set<URL> getUrlsForManifest(final URL url) {
-        final Set<URL> javaClassPath = Sets.newHashSet();
-        javaClassPath.add(url);
+    public static Set<URL> forManifest(final URL url) {
+        final Set<URL> result = Sets.newHashSet();
+
+        result.add(url);
 
         try {
             final String part = Vfs.normalizePath(url);
@@ -143,7 +168,7 @@ public abstract class ClasspathHelper {
             JarFile myJar = new JarFile(part);
 
             URL validUrl = tryToGetValidUrl(jarFile.getPath(), new File(part).getParent(), part);
-            if (validUrl != null) { javaClassPath.add(validUrl); }
+            if (validUrl != null) { result.add(validUrl); }
 
             final Manifest manifest = myJar.getManifest();
             if (manifest != null) {
@@ -151,7 +176,7 @@ public abstract class ClasspathHelper {
                 if (classPath != null) {
                     for (String jar : classPath.split(" ")) {
                         validUrl = tryToGetValidUrl(jarFile.getPath(), new File(part).getParent(), jar);
-                        if (validUrl != null) { javaClassPath.add(validUrl); }
+                        if (validUrl != null) { result.add(validUrl); }
                     }
                 }
             }
@@ -159,7 +184,20 @@ public abstract class ClasspathHelper {
             // don't do anything, we're going on the assumption it is a jar, which could be wrong
         }
 
-        return javaClassPath;
+        return result;
+    }
+
+    /** get the urls that are specified in the manifest of the given urls.
+     * attempts to load the jar manifest, if any, and adds to the result any dependencies it finds. */
+    public static Set<URL> forManifest(final Iterable<URL> urls) {
+        Set<URL> result = Sets.newHashSet();
+
+        // determine if any of the URLs are JARs, and get any dependencies
+        for (URL url : urls) {
+            result.addAll(forManifest(url));
+        }
+
+        return result;
     }
 
     //a little bit cryptic...

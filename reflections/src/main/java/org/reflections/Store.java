@@ -6,7 +6,6 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.*;
 import org.reflections.scanners.*;
 import org.reflections.scanners.Scanner;
-import org.reflections.util.Utils;
 
 import java.lang.annotation.Inherited;
 import java.util.*;
@@ -220,7 +219,7 @@ public class Store {
     /** is the given type name an interface. <p>causes class loading */
     public boolean isInterface(String aClass) {
         //todo create a string version of this
-        return Utils.forName(aClass).isInterface();
+        return ReflectionUtils.forName(aClass).isInterface();
     }
 
     /** is the given type is an annotation, based on the metadata stored by TypeAnnotationsScanner */
