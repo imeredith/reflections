@@ -95,7 +95,7 @@ public abstract class Vfs {
                 try {
                     return type.createDir(url);
                 } catch (Exception e) {
-                    throw new ReflectionsException("could not create Dir using " + type.getClass().getName() +" from url " + url.toExternalForm());
+                    throw new ReflectionsException("could not create Dir using " + type.getClass().getName() +" from url " + url.toExternalForm(), e);
                 }
             }
         }
