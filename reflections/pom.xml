@@ -98,7 +98,7 @@
     <repositories>
         <repository>
             <id>jboss maven2 repository</id>
-            <url>http://repository.jboss.org/maven2/</url>
+            <url>http://repository.jboss.org/nexus/content/groups/public-jboss/</url>
         </repository>
     </repositories>
 </project>
