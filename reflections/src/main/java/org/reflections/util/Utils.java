@@ -43,7 +43,7 @@ public abstract class Utils {
         return file;
     }
 
-    public static Method getMethodFromDescriptor(String descriptor) throws ReflectionsException {
+    public static Method getMethodFromDescriptor(String descriptor, ClassLoader... classLoaders) throws ReflectionsException {
         //todo create method md
 
         int p0 = descriptor.indexOf('(');
@@ -65,7 +65,7 @@ public abstract class Utils {
             parameterTypes = result.toArray(new Class<?>[result.size()]);
         }
 
-        Class<?> aClass = ReflectionUtils.forName(className);
+        Class<?> aClass = ReflectionUtils.forName(className, classLoaders);
         try {
             if (descriptor.contains("<init>")) {
 //                return aClass.getConstructor(parameterTypes);
@@ -78,13 +78,13 @@ public abstract class Utils {
         }
     }
 
-    public static Field getFieldFromString(String field) {
+    public static Field getFieldFromString(String field, ClassLoader... classLoaders) {
         //todo create field md
         String className = field.substring(0, field.lastIndexOf('.'));
         String fieldName = field.substring(field.lastIndexOf('.') + 1);
 
         try {
-            return ReflectionUtils.forName(className).getDeclaredField(fieldName);
+            return ReflectionUtils.forName(className, classLoaders).getDeclaredField(fieldName);
         } catch (NoSuchFieldException e) {
             throw new ReflectionsException("Can't resolve field named " + fieldName, e);
         }

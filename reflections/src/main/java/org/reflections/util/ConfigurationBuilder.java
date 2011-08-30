@@ -2,8 +2,7 @@ package org.reflections.util;
 
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Lists;
+import com.google.common.collect.ObjectArrays;
 import com.google.common.collect.Sets;
 import org.reflections.Configuration;
 import org.reflections.adapters.JavassistAdapter;
@@ -17,7 +16,7 @@ import org.reflections.serializers.XmlSerializer;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashSet;
+import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -45,6 +44,7 @@ public class ConfigurationBuilder implements Configuration {
     private Predicate<String> inputsFilter = Predicates.alwaysTrue();
     private Serializer serializer;
     private ExecutorService executorService;
+    /*@Nullable*/ private ClassLoader[] classLoaders = null;
 
     public ConfigurationBuilder() {
     }
@@ -167,5 +167,26 @@ public class ConfigurationBuilder implements Configuration {
     public ConfigurationBuilder setSerializer(Serializer serializer) {
         this.serializer = serializer;
         return this;
+    }
+
+    /** get class loader, might be used for scanning or resolving methods/fields */
+    public ClassLoader[] getClassLoaders() {
+        return classLoaders;
+    }
+
+    /** add class loader, might be used for resolving methods/fields */
+    public ConfigurationBuilder addClassLoader(ClassLoader classLoader) {
+        return addClassLoaders(classLoader);
+    }
+
+    /** add class loader, might be used for resolving methods/fields */
+    public ConfigurationBuilder addClassLoaders(ClassLoader... classLoaders) {
+        this.classLoaders = this.classLoaders == null ? classLoaders : ObjectArrays.concat(this.classLoaders, classLoaders, ClassLoader.class);
+        return this;
+    }
+
+    /** add class loader, might be used for resolving methods/fields */
+    public ConfigurationBuilder addClassLoaders(Collection<ClassLoader> classLoaders) {
+        return addClassLoaders(classLoaders.toArray(new ClassLoader[classLoaders.size()]));
     }
 }

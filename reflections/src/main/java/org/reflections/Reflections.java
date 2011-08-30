@@ -399,7 +399,7 @@ public class Reflections extends ReflectionUtils {
 
         Set<Method> result = Sets.newHashSet();
         for (String annotated : annotatedWith) {
-            result.add(Utils.getMethodFromDescriptor(annotated));
+            result.add(Utils.getMethodFromDescriptor(annotated, configuration.getClassLoaders()));
         }
 
         return result;
@@ -423,7 +423,7 @@ public class Reflections extends ReflectionUtils {
 
         Collection<String> annotatedWith = store.getFieldsAnnotatedWith(annotation.getName());
         for (String annotated : annotatedWith) {
-            result.add(Utils.getFieldFromString(annotated));
+            result.add(Utils.getFieldFromString(annotated, configuration.getClassLoaders()));
         }
 
         return result;
@@ -450,7 +450,7 @@ public class Reflections extends ReflectionUtils {
 
         Set<String> converters = store.getConverters(from.getName(), to.getName());
         for (String converter : converters) {
-            result.add(Utils.getMethodFromDescriptor(converter));
+            result.add(Utils.getMethodFromDescriptor(converter, configuration.getClassLoaders()));
         }
 
         return result;

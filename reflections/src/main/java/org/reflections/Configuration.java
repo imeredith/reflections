@@ -32,4 +32,7 @@ public interface Configuration {
 
     /** the default serializer to use when saving Reflection */
     Serializer getSerializer();
+
+    /** get class loaders, might be used for resolving methods/fields */
+    /*@Nullable*/ ClassLoader[] getClassLoaders();
 }
