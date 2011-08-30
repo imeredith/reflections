@@ -18,7 +18,7 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>r08</version>
+            <version>r09</version>
         </dependency>
 
         <!-- actually needed only when scanning is done. if using {@link Reflections.collect()} javassist is not needed -->
@@ -89,7 +89,7 @@
             <groupId>com.google.code.findbugs</groupId>
             <artifactId>jsr305</artifactId>
             <version>1.3.7</version>
-            <scope>test</scope>
+            <scope>compile</scope>
             <optional>true</optional>
         </dependency>
     </dependencies>
