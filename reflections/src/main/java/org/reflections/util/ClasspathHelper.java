@@ -201,7 +201,7 @@ public abstract class ClasspathHelper {
     }
 
     //a little bit cryptic...
-    private static URL tryToGetValidUrl(String workingDir, String path, String filename) {
+    static URL tryToGetValidUrl(String workingDir, String path, String filename) {
         try {
             if (new File(filename).exists())
                 return new File(filename).toURI().toURL();
@@ -209,6 +209,8 @@ public abstract class ClasspathHelper {
                 return new File(path + File.separator + filename).toURI().toURL();
             if (new File(workingDir + File.separator + filename).exists())
                 return new File(workingDir + File.separator + filename).toURI().toURL();
+            if (new File(new URL(filename).getFile()).exists())
+                return new File(new URL(filename).getFile()).toURI().toURL();
         } catch (MalformedURLException e) {
             // don't do anything, we're going on the assumption it is a jar, which could be wrong
         }
