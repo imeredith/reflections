@@ -65,6 +65,36 @@ public abstract class ReflectionUtils {
         return annotated;
     }
 
+    public static List<Method> getDeclaredMethodsAnnotatedWith(final Class<?> cls, final Class<? extends Annotation> annotation) {
+        final List<Method> result = Lists.newArrayList();
+
+        for (Method method : cls.getDeclaredMethods()) {
+            for (Annotation methodAnnotation : method.getAnnotations()) {
+                if (methodAnnotation.annotationType().equals(annotation)) {
+                    result.add(method);
+                    break;
+                }
+            }
+        }
+
+        return result;
+    }
+
+    public static List<Method> getDeclaredMethodsAnnotatedWith(final Class<?> cls, final Annotation annotation) {
+        final List<Method> result = Lists.newArrayList();
+
+        for (Method method : cls.getDeclaredMethods()) {
+            for (Annotation methodAnnotation : method.getAnnotations()) {
+                if (areAnnotationMembersMatching(methodAnnotation, annotation)) {
+                    result.add(method);
+                    break;
+                }
+            }
+        }
+
+        return result;
+    }
+
     /**
      * checks for annotation member values matching, based on equality of members
      */

@@ -4,7 +4,9 @@ import com.google.common.collect.AbstractIterator;
 import org.reflections.ReflectionsException;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.URL;
+import java.net.URLDecoder;
 import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.zip.ZipEntry;
@@ -15,11 +17,8 @@ public class ZipDir implements Vfs.Dir {
     private String path;
 
     public ZipDir(URL url) {
-        this(url.getPath());
-    }
-
-    public ZipDir(String p) {
-        path = p;
+        path = url.getPath();
+        try { path = URLDecoder.decode(path, "UTF-8"); } catch (UnsupportedEncodingException e) { /**/ }
         if (path.startsWith("jar:")) { path = path.substring("jar:".length()); }
         if (path.startsWith("file:")) { path = path.substring("file:".length()); }
         if (path.endsWith("!/")) { path = path.substring(0, path.lastIndexOf("!/")) + "/"; }

@@ -8,8 +8,10 @@ import org.reflections.util.Utils;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -95,7 +97,7 @@ public abstract class Vfs {
                 try {
                     return type.createDir(url);
                 } catch (Exception e) {
-                    throw new ReflectionsException("could not create Dir using " + type.getClass().getName() +" from url " + url.toExternalForm(), e);
+                    throw new ReflectionsException("could not create Dir using " + type +" from url " + url.toExternalForm(), e);
                 }
             }
         }
@@ -162,19 +164,20 @@ public abstract class Vfs {
 
         vfsfile {
             public boolean matches(URL url) {return url.getProtocol().equals("vfsfile") && url.toExternalForm().endsWith(".jar");}
-            public Dir createDir(URL url) {return new ZipDir(url.toString().replaceFirst("vfsfile:", "file:"));}},
+            public Dir createDir(URL url) {return new ZipDir(url);}},
 
         vfszip {
             public boolean matches(URL url) {return url.getProtocol().equals("vfszip") && url.toExternalForm().endsWith(".jar");}
-            public Dir createDir(URL url) {return new ZipDir(url.toString().replaceFirst("vfszip:", "file:"));}}
+            public Dir createDir(URL url) {return new ZipDir(url);}}
     }
 
     //
     public static String normalizePath(final URL url) {
-        try {
-            return url.toURI().getPath();
-        } catch (URISyntaxException e) {
-            throw new RuntimeException("could not normalize path of " + url, e);
-        }
+        String path = url.getPath();
+        try { path = URLDecoder.decode(path, "UTF-8"); } catch (UnsupportedEncodingException e) { /**/ }
+        if (path.startsWith("jar:")) { path = path.substring("jar:".length()); }
+        if (path.startsWith("file:")) { path = path.substring("file:".length()); }
+        if (path.endsWith("!/")) { path = path.substring(0, path.lastIndexOf("!/")) + "/"; }
+        return path;
     }
 }
