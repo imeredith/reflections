@@ -1,7 +1,9 @@
 package org.reflections;
 
 import com.google.common.base.Predicates;
+import com.google.common.io.Files;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.reflections.util.ClasspathHelper;
 import org.reflections.vfs.Vfs;
@@ -14,29 +16,32 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.util.Collection;
+import java.util.Set;
 
 /** */
 public class VfsTest {
 
-    private void testVfsDir(URL url) {
-        Assert.assertNotNull(url);
+    @Test public void test() throws IOException {
+        File dir1 = new File("/tmp/dir with spaces/");
 
-        Vfs.Dir dir = Vfs.fromURL(url);
-        Assert.assertNotNull(dir);
-
-        Iterable<Vfs.File> files = dir.getFiles();
-        Vfs.File first = files.iterator().next();
-        Assert.assertNotNull(first);
-
-        first.getName();
         try {
-            first.openInputStream();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+            dir1.mkdirs();
 
-        dir.close();
+            File dir2 = new File("/tmp/dir%20with%20spaces/");
+            if (dir2.exists()) { dir2.delete(); }
+
+            File from = new File(getSomeJar().getFile());
+            File to = new File(dir1, from.getName());
+            Files.copy(from, to);
+
+            testVfsDir(to.toURL());
+            testVfsDir(new File(dir2, from.getName()).toURL());
+            testVfsDir(new URL("jar", "", "file:" + to.getAbsolutePath() + "!/"));
+        } finally {
+            Files.deleteRecursively(dir1);
+        }
     }
 
     @Test
@@ -62,7 +67,28 @@ public class VfsTest {
         Assert.assertFalse(files.iterator().hasNext());
     }
 
-//    @Test
+    private void testVfsDir(URL url) {
+        System.out.println("testVfsDir(" + url + ")");
+        Assert.assertNotNull(url);
+
+        Vfs.Dir dir = Vfs.fromURL(url);
+        Assert.assertNotNull(dir);
+
+        Iterable<Vfs.File> files = dir.getFiles();
+        Vfs.File first = files.iterator().next();
+        Assert.assertNotNull(first);
+
+        first.getName();
+        try {
+            first.openInputStream();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        dir.close();
+    }
+
+    @Test @Ignore
     public void vfsFromHttpUrl() throws MalformedURLException {
         Vfs.addDefaultURLTypes(new Vfs.UrlType() {
             public boolean matches(URL url)         {return url.getProtocol().equals("http");}
@@ -82,7 +108,7 @@ public class VfsTest {
             this.path = url.toExternalForm();
             try {file = downloadTempLocally(url);}
             catch (IOException e) {throw new RuntimeException(e);}
-            zipDir = new ZipDir(file.getAbsolutePath());
+            try { zipDir = new ZipDir(file.toURL()); } catch (MalformedURLException e) { throw new RuntimeException(e); }
         }
 
         public String getPath() {return path;}
@@ -113,7 +139,7 @@ public class VfsTest {
     }
 
     //
-    public URL getSomeJar() {
+    private URL getSomeJar() {
         Collection<URL> urls = ClasspathHelper.forClassLoader();
         for (URL url : urls) {
             if (url.getFile().endsWith(".jar")) {
@@ -132,4 +158,5 @@ public class VfsTest {
             throw new RuntimeException(e);
         }
     }
+
 }
