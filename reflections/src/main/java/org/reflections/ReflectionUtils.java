@@ -1,14 +1,17 @@
 package org.reflections;
 
+import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
-import com.google.common.collect.Collections2;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import org.reflections.util.ClasspathHelper;
 
-import java.lang.String;
-import java.lang.reflect.AnnotatedElement;
+import javax.annotation.Nullable;
 import java.lang.annotation.Annotation;
+import java.lang.reflect.AnnotatedElement;
+import java.lang.reflect.Field;
+import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.util.*;
 
@@ -21,83 +24,126 @@ public abstract class ReflectionUtils {
     @SuppressWarnings({"unchecked"}) public final static List<Class> primitiveTypes = Lists.<Class>newArrayList(boolean.class, char.class, byte.class, short.class, int.class, long.class, float.class, double.class, void.class);
     public final static List<String> primitiveDescriptors = Lists.newArrayList("Z", "C", "B", "S", "I", "J", "F", "D", "V");
 
-    public static <T> Collection<? extends Class<?>> getAllSuperTypes(final Class<T> type) {
-        Collection<Class<?>> result = Lists.newArrayList();
+    public static <T extends AnnotatedElement> Set<T> getAll(final Iterable<T> elements, Predicate<? super T>... predicates) {
+        return predicates != null ? Sets.newHashSet(Iterables.filter(elements, Predicates.and(predicates))) : Sets.newHashSet(elements);
+    }
 
-        Class<? super T> superclass = type.getSuperclass();
-        Class<?>[] interfaces = type.getInterfaces();
-
-        Collections.addAll(result, interfaces);
-        result.add(superclass);
-
-        result = Collections2.filter(result, Predicates.notNull());
-
-        Collection<Class<?>> subResult = Lists.newArrayList();
-        for (Class<?> aClass1 : result) {
-            Collection<? extends Class<?>> classes = getAllSuperTypes(aClass1);
-            subResult.addAll(classes);
+    /** get all super types of given types, including the types */
+    public static Set<Class<?>> getAllSuperTypes(final Class<?> type, Predicate<? super Class<?>>... predicates) {
+        Set<Class<?>> result = Sets.newHashSet();
+        if (type != null) {
+            result.add(type);
+            result.addAll(getAllSuperTypes(type.getSuperclass()));
+            for (Class<?> inter : type.getInterfaces()) {
+                result.addAll(getAllSuperTypes(inter));
+            }
         }
-
-        result.addAll(subResult);
+        if (predicates != null) {
+            result = Sets.newHashSet(Iterables.filter(result, Predicates.and(predicates)));
+        }
         return result;
     }
 
-    /** return all super types of a given annotated element annotated with a given annotation up in hierarchy, including the given type */
-    public static List<AnnotatedElement> getAllSuperTypesAnnotatedWith(final AnnotatedElement annotatedElement, final Annotation annotation) {
-        final List<AnnotatedElement> annotated = Lists.newArrayList();
-
-        if (annotatedElement != null) {
-            if (annotatedElement.isAnnotationPresent(annotation.annotationType())) {
-                annotated.add(annotatedElement);
-            }
-
-            if (annotatedElement instanceof Class<?>) {
-                List<AnnotatedElement> subResult = Lists.newArrayList();
-                Class<?> aClass = (Class<?>) annotatedElement;
-                subResult.addAll(getAllSuperTypesAnnotatedWith(aClass.getSuperclass(), annotation));
-                for (AnnotatedElement anInterface : aClass.getInterfaces()) {
-                    subResult.addAll(getAllSuperTypesAnnotatedWith(anInterface, annotation));
-                }
-                annotated.addAll(subResult);
-            }
+    public static Set<Field> getAllFields(final Class<?> type, Predicate<? super Field>... predicates) {
+        Set<Field> result = Sets.newHashSet();
+        for (Class<?> t : getAllSuperTypes(type)) {
+            Collections.addAll(result, t.getDeclaredFields());
         }
-
-        return annotated;
-    }
-
-    public static List<Method> getDeclaredMethodsAnnotatedWith(final Class<?> cls, final Class<? extends Annotation> annotation) {
-        final List<Method> result = Lists.newArrayList();
-
-        for (Method method : cls.getDeclaredMethods()) {
-            for (Annotation methodAnnotation : method.getAnnotations()) {
-                if (methodAnnotation.annotationType().equals(annotation)) {
-                    result.add(method);
-                    break;
-                }
-            }
+        if (predicates != null) {
+            result = Sets.newHashSet(Iterables.filter(result, Predicates.and(predicates)));
         }
-
         return result;
     }
 
-    public static List<Method> getDeclaredMethodsAnnotatedWith(final Class<?> cls, final Annotation annotation) {
-        final List<Method> result = Lists.newArrayList();
-
-        for (Method method : cls.getDeclaredMethods()) {
-            for (Annotation methodAnnotation : method.getAnnotations()) {
-                if (areAnnotationMembersMatching(methodAnnotation, annotation)) {
-                    result.add(method);
-                    break;
-                }
-            }
+    public static Set<Method> getAllMethods(final Class<?> type, Predicate<? super Method>... predicates) {
+        Set<Method> result = Sets.newHashSet();
+        for (Class<?> t : getAllSuperTypes(type)) {
+            Collections.addAll(result, t.isInterface() ? t.getMethods() : t.getDeclaredMethods());
         }
-
+        if (predicates != null) {
+            result = Sets.newHashSet(Iterables.filter(result, Predicates.and(predicates)));
+        }
         return result;
     }
 
-    /**
-     * checks for annotation member values matching, based on equality of members
-     */
+    //
+    public static <T extends Member> Predicate<T> withName(final String name) {
+        return new Predicate<T>() {
+            public boolean apply(@Nullable T input) {
+                return input != null && input.getName().equals(name);
+            }
+        };
+    }
+
+    public static <T extends AnnotatedElement> Predicate<T> withAnnotation(final Class<? extends Annotation> annotation) {
+        return new Predicate<T>() {
+            public boolean apply(@Nullable T input) {
+                return input != null && input.isAnnotationPresent(annotation);
+            }
+        };
+    }
+
+    public static <T extends AnnotatedElement> Predicate<T> withAnnotation(final Annotation annotation) {
+        return new Predicate<T>() {
+            public boolean apply(@Nullable T input) {
+                return input != null && input.isAnnotationPresent(annotation.annotationType()) &&
+                        areAnnotationMembersMatching(input.getAnnotation(annotation.annotationType()), annotation);
+            }
+        };
+    }
+
+    public static Predicate<Method> withParameters(final Class... types) {
+        return new Predicate<Method>() {
+            public boolean apply(@Nullable Method input) {
+                return input != null && Arrays.equals(input.getParameterTypes(), types);
+            }
+        };
+    }
+
+    public static Predicate<Method> withParametersAssignableFrom(final Class... types) {
+        return new Predicate<Method>() {
+            public boolean apply(@Nullable Method input) {
+                if (input != null) {
+                    Class<?>[] parameterTypes = input.getParameterTypes();
+                    if (parameterTypes.length == types.length) {
+                        for (int i = 0; i < parameterTypes.length; i++) {
+                            if (!parameterTypes[i].isAssignableFrom(types[i])) {
+                                return false;
+                            }
+                        }
+                        return true;
+                    }
+                }
+                return false;
+            }
+        };
+    }
+
+    public static Predicate<Method> withParametersCount(final int count) {
+        return new Predicate<Method>() {
+            public boolean apply(@Nullable Method input) {
+                return input != null && input.getParameterTypes().length == count;
+            }
+        };
+    }
+
+    public static <T> Predicate<Field> withType(final Class<T> type) {
+        return new Predicate<Field>() {
+            public boolean apply(@Nullable Field input) {
+                return input != null && input.getType().equals(type);
+            }
+        };
+    }
+
+    public static <T> Predicate<Field> withTypeAssignableFrom(final Class<T> type) {
+        return new Predicate<Field>() {
+            public boolean apply(@Nullable Field input) {
+                return input != null && input.getType().isAssignableFrom(type);
+            }
+        };
+    }
+
+    /** checks for annotation member values matching, based on equality of members */
     public static boolean areAnnotationMembersMatching(Annotation annotation1, Annotation annotation2) {
         if (annotation2 != null && annotation1.annotationType() == annotation2.annotationType()) {
             for (Method method : annotation1.annotationType().getDeclaredMethods()) {
@@ -116,29 +162,14 @@ public abstract class ReflectionUtils {
     }
 
     /**
-     * checks for annotation member values matching on an annotated element or it's first annotated super type, based on equality of members
-     */
-    protected static boolean areAnnotationMembersMatching(final Annotation annotation1, final AnnotatedElement annotatedElement) {
-        List<AnnotatedElement> elementList = ReflectionUtils.getAllSuperTypesAnnotatedWith(annotatedElement, annotation1);
-
-        if (!elementList.isEmpty()) {
-            AnnotatedElement element = elementList.get(0);
-            Annotation annotation2 = element.getAnnotation(annotation1.annotationType());
-
-            return areAnnotationMembersMatching(annotation1, annotation2);
-        }
-
-        return false;
-    }
-
-    /**
      * returns a subset of given annotatedWith, where annotation member values matches the given annotation
      */
-    protected static <T extends AnnotatedElement> Set<T> getMatchingAnnotations(final Set<T> annotatedElements, final Annotation annotation) {
+    public static <T extends AnnotatedElement> Set<T> getMatchingAnnotations(final Set<T> annotatedElements, final Annotation annotation) {
         Set<T> result = Sets.newHashSet();
 
         for (T annotatedElement : annotatedElements) {
-            if (areAnnotationMembersMatching(annotation, annotatedElement)) {
+            Annotation annotation1 = annotatedElement.getAnnotation(annotation.annotationType());
+            if (areAnnotationMembersMatching(annotation, annotation1)) {
                 result.add(annotatedElement);
             }
         }

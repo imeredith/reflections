@@ -23,6 +23,12 @@ import java.util.Set;
 /** */
 public class VfsTest {
 
+    @Test public void dirWithSpaces() {
+        for (URL url : ClasspathHelper.forPackage("dir with spaces")) {
+            testVfsDir(url);
+        }
+    }
+
     @Test public void test() throws IOException {
         File dir1 = new File("/tmp/dir with spaces/");
 

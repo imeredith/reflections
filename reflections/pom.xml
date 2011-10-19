@@ -21,39 +21,34 @@
             <version>10.0</version>
         </dependency>
 
-        <!-- actually needed only when scanning is done. if using {@link Reflections.collect()} javassist is not needed -->
         <dependency>
             <groupId>javassist</groupId>
             <artifactId>javassist</artifactId>
             <version>3.12.1.GA</version>
-            <!--<optional>true</optional>--> <!-- case: when no scanning -->
+            <optional>false</optional> <!-- case: when not actually scanning with javassist or if using {@link Reflections.collect()} -->
         </dependency>
 
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
             <version>1.6.1</version>
+            <optional>true</optional> <!-- case: when logging is not needed -->
         </dependency>
 
-        <!-- effectively needed when XmlSerializer is used -->
         <dependency>
             <groupId>dom4j</groupId>
             <artifactId>dom4j</artifactId>
             <version>1.6.1</version>
-            <!--<scope>runtime</scope>-->
-            <!--<optional>true</optional>--> <!-- case: when no xml de/serialization -->
+            <optional>false</optional> <!-- case: when no xml de/serialization -->
         </dependency>
 
-        <!-- effectively needed when JsonSerializer is used -->
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
             <version>1.4</version>
-            <!--<scope>runtime</scope>-->
             <optional>true</optional> <!-- case: when no json de/serialization -->
         </dependency>
 
-        <!-- effectively might be needed for war environments -->
         <dependency>
             <groupId>javax.servlet</groupId>
             <artifactId>servlet-api</artifactId>
@@ -67,7 +62,7 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
             <version>1.6.1</version>
-            <optional>true</optional>
+            <optional>true</optional> <!-- case: when other logging implementation used or logging is not needed -->
         </dependency>
 
         <dependency>
@@ -80,8 +75,8 @@
         <dependency>
             <groupId>com.google.code.findbugs</groupId>
             <artifactId>jsr305</artifactId>
-            <version>1.3.7</version>
-            <scope>test</scope>
+            <version>1.3.9</version>
+            <scope>compile</scope>
             <optional>true</optional>
         </dependency>
     </dependencies>

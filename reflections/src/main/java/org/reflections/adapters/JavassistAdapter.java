@@ -1,12 +1,13 @@
 package org.reflections.adapters;
 
 import com.google.common.base.Joiner;
-import static javassist.bytecode.AccessFlag.*;
-
+import com.google.common.cache.*;
 import com.google.common.collect.Lists;
 import javassist.bytecode.*;
 import javassist.bytecode.annotation.Annotation;
 import org.reflections.ReflectionsException;
+import org.reflections.util.Utils;
+import org.reflections.vfs.Vfs;
 
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
@@ -15,11 +16,22 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+import static javassist.bytecode.AccessFlag.*;
 
 /**
  *
  */
 public class JavassistAdapter implements MetadataAdapter<ClassFile, FieldInfo, MethodInfo> {
+
+    private Cache<Vfs.File, ClassFile> classFileCache = CacheBuilder.newBuilder().softValues().weakKeys().maximumSize(4).expireAfterWrite(500, TimeUnit.MILLISECONDS).
+            build(new CacheLoader<Vfs.File, ClassFile>() {
+                @Override public ClassFile load(Vfs.File key) throws Exception {
+                    return createClassObject(key);
+                }
+            });
+
     public List<FieldInfo> getFields(final ClassFile cls) {
         //noinspection unchecked
         return cls.getFields();
@@ -81,20 +93,24 @@ public class JavassistAdapter implements MetadataAdapter<ClassFile, FieldInfo, M
         return field.getName();
     }
 
-    public ClassFile createClassObject(InputStream inputStream) throws IOException {
-        DataInputStream dis = null;
+    public ClassFile getOfCreateClassObject(final Vfs.File file) {
         try {
-            dis = new DataInputStream(new BufferedInputStream(inputStream));
+            return classFileCache.get(file);
+        } catch (Exception e) {
+            return createClassObject(file);
+        }
+    }
+
+    protected ClassFile createClassObject(final Vfs.File file) {
+        InputStream inputStream = null;
+        try {
+            inputStream = file.openInputStream();
+            DataInputStream dis = new DataInputStream(new BufferedInputStream(inputStream));
             return new ClassFile(dis);
+        } catch (IOException e) {
+            throw new ReflectionsException("could not create class file from " + file.getName(), e);
         } finally {
-            if (dis != null) {
-                try {
-                    dis.close();
-                } catch (IOException e) {
-                    //noinspection ThrowFromFinallyBlock
-                    throw new ReflectionsException("could not close DataInputStream", e);
-                }
-            }
+            Utils.close(inputStream);
         }
     }
 
@@ -111,6 +127,15 @@ public class JavassistAdapter implements MetadataAdapter<ClassFile, FieldInfo, M
 
     public String getMethodFullKey(ClassFile cls, MethodInfo method) {
         return getClassName(cls) + "." + getMethodKey(cls, method);
+    }
+
+    public boolean isPublic(Object o) {
+        Integer accessFlags =
+                o instanceof ClassFile ? ((ClassFile) o).getAccessFlags() :
+                o instanceof FieldInfo ? ((FieldInfo) o).getAccessFlags() :
+                o instanceof MethodInfo ? ((MethodInfo) o).getAccessFlags() : null;
+
+        return accessFlags != null && AccessFlag.isPublic(accessFlags);
     }
 
     //

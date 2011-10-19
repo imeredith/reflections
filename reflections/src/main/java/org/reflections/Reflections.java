@@ -1,7 +1,6 @@
 package org.reflections;
 
 import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -15,6 +14,7 @@ import org.reflections.vfs.Vfs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.io.*;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
@@ -29,6 +29,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.regex.Pattern;
 
 import static java.lang.String.format;
+import static org.reflections.util.Utils.*;
 
 /**
  * Reflections one-stop-shop object
@@ -55,21 +56,27 @@ import static java.lang.String.format;
  *          new ConfigurationBuilder()
  *              .filterInputsBy(new FilterBuilder().include("your project's common package prefix here..."))
  *              .setUrls(ClasspathHelper.forClassLoader())
- *              .setScanners(new SubTypesScanner(), new TypeAnnotationsScanner().filterResultsBy(myClassAnnotationsFilter)));
+ *              .setScanners(new SubTypesScanner(), new TypeAnnotationsScanner()));
  * </pre>
  * and than use the convenient methods to query the metadata, such as {@link #getSubTypesOf},
  * {@link #getTypesAnnotatedWith}, {@link #getMethodsAnnotatedWith}, {@link #getFieldsAnnotatedWith}, {@link #getResources}
  * <br>use {@link #getStore()} to access and query the store directly
  * <p>in order to save a metadata use {@link #save(String)} or {@link #save(String, org.reflections.serializers.Serializer)}
  * for example with {@link org.reflections.serializers.XmlSerializer} or {@link org.reflections.serializers.JavaCodeSerializer}
- * <p>in order to collect pre saved metadata and avoid re-scanning, use {@link #collect(String, com.google.common.base.Predicate)}
- * <p>* be aware that when using the constructor new Reflections("my.package"), only urls with prefix 'my.package' will be scanned,
+ * <p>in order to collect pre saved metadata and avoid re-scanning, use {@link #collect(String, com.google.common.base.Predicate, org.reflections.serializers.Serializer...)}}
+ * <p><i>* be aware that when using the constructor new Reflections("my.package"), only urls with prefix 'my.package' will be scanned,
  * and any transitive classes in other urls will not be scanned (for example if my.package.SomeClass extends other.package.OtherClass,
- * than the later will not be scanned). in that case specify the urls manually using {@link ConfigurationBuilder}
+ * than the later will not be scanned). in that case use the other constructors and specify the relevant packages/urls
+ * {@link Reflections#Reflections(Object[], org.reflections.scanners.Scanner...)}()} or {@link Reflections#Reflections(Configuration)}</i>
  * <p><p><p>For Javadoc, source code, and more information about Reflections Library, see http://code.google.com/p/reflections/
  */
 public class Reflections extends ReflectionUtils {
-    private static final Logger log = LoggerFactory.getLogger(Reflections.class);
+    @Nullable public static Logger log;
+
+    static {
+        Logger logger; try { logger = LoggerFactory.getLogger(Reflections.class); } catch (Error e) { logger = null; }
+        log = logger;
+    }
 
     protected final transient Configuration configuration;
     private Store store;
@@ -80,7 +87,7 @@ public class Reflections extends ReflectionUtils {
      */
     public Reflections(final Configuration configuration) {
         this.configuration = configuration;
-        store = new Store(configuration);
+        store = new Store();
 
         //inject to scanners
         for (Scanner scanner : configuration.getScanners()) {
@@ -92,79 +99,78 @@ public class Reflections extends ReflectionUtils {
     }
 
     /**
-     * a convenient constructor for scanning within a package prefix
+     * a convenient constructor for scanning within a package prefix.
      * <p>this actually create a {@link Configuration} with:
      * <br> - urls that contain resources with name {@code prefix}
-     * <br> - acceptsInput where name starts with the given {@code prefix}
+     * <br> - filterInputsBy where name starts with the given {@code prefix}
      * <br> - scanners set to the given {@code scanners}, otherwise defaults to {@link TypeAnnotationsScanner} and {@link SubTypesScanner}.
-     * <br> - scanner results filter is set to accept results matching given {@code prefix}
+     * @param prefix package prefix, to be used with {@link ClasspathHelper#forPackage(String, ClassLoader...)} )}
+     * @param scanners optionally supply scanners, otherwise defaults to {@link TypeAnnotationsScanner} and {@link SubTypesScanner}
      */
-    public Reflections(final String prefix, final Scanner... scanners) {
+    public Reflections(final String prefix, @Nullable final Scanner... scanners) {
+        this(new String[]{prefix}, scanners);
+    }
+
+    /**
+     * a convenient constructor for scanning within given package prefixes.
+     * <br>for example
+     * <pre>
+     * Reflections reflections = new Reflections(new String[] {"my.package.prefix", "my.other.package.prefix"});
+     * </pre>
+     * <p>this actually create a {@link Configuration} with:
+     * <br> - urls that contain resources with prefixes {@code prefixes}
+     * <br> - filterInputsBy to include names starting with the given {@code prefixes}
+     * <br> - scanners set to the given {@code scanners}, otherwise defaults to {@link TypeAnnotationsScanner} and {@link SubTypesScanner}.
+     * @param prefixes string array of package prefixes, to be used with {@link ClasspathHelper#forPackage(String, ClassLoader...)} )}
+     * @param scanners optionally supply scanners, otherwise defaults to {@link TypeAnnotationsScanner} and {@link SubTypesScanner}
+     */
+    public Reflections(final String[] prefixes, @Nullable final Scanner... scanners) {
         this(new ConfigurationBuilder() {
             {
-                final Predicate<String> filter = new FilterBuilder.Include(FilterBuilder.prefix(prefix));
+                for (String prefix : prefixes) { addUrls(ClasspathHelper.forPackage(prefix)); }
 
-                setUrls(ClasspathHelper.forPackage(prefix));
-                filterInputsBy(filter);
+                final FilterBuilder prefixFilter = new FilterBuilder();
+                for (String prefix : prefixes) { prefixFilter.include(FilterBuilder.prefix(prefix)); }
+                filterInputsBy(prefixFilter);
 
-                if (scanners != null && scanners.length != 0) {
-                    for (Scanner scanner : scanners) {
-                        scanner.filterResultsBy(Predicates.<String>and(filter, scanner.getResultFilter()));
-                    }
-                    setScanners(scanners);
-                } else {
-                    setScanners(
-                            new TypeAnnotationsScanner().filterResultsBy(filter),
-                            new SubTypesScanner().filterResultsBy(filter));
-                }
+                setScanners(!isEmpty(scanners) ? scanners : new Scanner[]{new TypeAnnotationsScanner(), new SubTypesScanner()});
             }
         });
     }
 
     /**
-     * a convenient constructor for scanning within given package prefixes and urls containing given classes.
+     * a convenient constructor for scanning within given package prefixes and/or urls containing given classes.
      * <p>given urlHints is an array of either String or Class elements, where Strings results in scanning package prefix
      * and Class results in scanning url that contains that class, for example
      * <pre>
-     *     new Reflections(new Object[] {"my.package", com.google.inject.Module, "javax.persistence"})
+     *     new Reflections(new Object[] {"my.package", com.google.inject.Module.class, "javax.persistence"})
      * </pre>
      * would result in scanning packages 'my.package' and 'javax.persistence' and also the url that contains the class of com.google.inject.Module
      * <p>this actually create a {@link Configuration} with:
      * <br> - urls that contain resources with name {@code prefix} or that contains given classes
      * <br> - acceptsInput where name starts with the given {@code prefix} or with the classes package name
      * <br> - scanners set to the given {@code scanners}, otherwise defaults to {@link TypeAnnotationsScanner} and {@link SubTypesScanner}.
-     * <br> - scanner results filter is set to accept results matching given {@code prefix} or the given classes package name
      * @param urlHints is an array of either String or Class elements, where Strings results in scanning package prefix and Class results in scanning urls containing the class
+     * @param scanners optionally supply scanners, otherwise defaults to {@link TypeAnnotationsScanner} and {@link SubTypesScanner}
      */
-    public Reflections(final Object[] urlHints, final Scanner... scanners) {
+    public Reflections(final Object[] urlHints, @Nullable final Scanner... scanners) {
         this(new ConfigurationBuilder() {
             {
-                final List<String> prefixes = Lists.newArrayList();
+                final FilterBuilder prefixFilter = new FilterBuilder();
 
                 for (Object urlHint : urlHints) {
                     if (urlHint instanceof String) {
                         addUrls(ClasspathHelper.forPackage((String) urlHint));
-                        prefixes.add((String) urlHint);
+                        prefixFilter.include(FilterBuilder.prefix((String) urlHint));
                     } else if (urlHint instanceof Class) {
                         addUrls(ClasspathHelper.forClass((Class) urlHint));
-                        prefixes.add(((Class) urlHint).getPackage().getName());
+                        prefixFilter.includePackage(((Class) urlHint));
                     }
                 }
 
-                final FilterBuilder filter = new FilterBuilder();
-                for (String prefix : prefixes) { filter.include(FilterBuilder.prefix(prefix)); }
-                filterInputsBy(filter);
+                filterInputsBy(prefixFilter);
 
-                if (scanners != null && scanners.length != 0) {
-                    for (Scanner scanner : scanners) {
-                        scanner.filterResultsBy(Predicates.<String>and(filter, scanner.getResultFilter()));
-                    }
-                    setScanners(scanners);
-                } else {
-                    setScanners(
-                            new TypeAnnotationsScanner().filterResultsBy(filter),
-                            new SubTypesScanner().filterResultsBy(filter));
-                }
+                setScanners(!isEmpty(scanners) ? scanners : new Scanner[]{new TypeAnnotationsScanner(), new SubTypesScanner()});
             }
         });
     }
@@ -177,10 +183,10 @@ public class Reflections extends ReflectionUtils {
     //
     protected void scan() {
         if (configuration.getUrls() == null || configuration.getUrls().isEmpty()) {
-            log.error("given scan urls are empty. set urls in the configuration");
+            if (log != null) log.error("given scan urls are empty. set urls in the configuration");
             return;
         } else {
-            if (log.isDebugEnabled()) {
+            if (log != null && log.isDebugEnabled()) {
                 StringBuilder urls = new StringBuilder();
                 for (URL url : configuration.getUrls()) {
                     urls.append("\t").append(url.toExternalForm()).append("\n");
@@ -200,7 +206,7 @@ public class Reflections extends ReflectionUtils {
                         scan(file);
                     }
                 } catch (ReflectionsException e) {
-                    log.error("could not create Vfs.Dir from url. ignoring the exception and continuing", e);
+                    if (log != null) log.error("could not create Vfs.Dir from url. ignoring the exception and continuing", e);
                 }
 
             }
@@ -218,7 +224,7 @@ public class Reflections extends ReflectionUtils {
                             }));
                         }
                     } catch (ReflectionsException e) {
-                        log.error("could not create Vfs.Dir from url. ignoring the exception and continuing", e);
+                        if (log != null) log.error("could not create Vfs.Dir from url. ignoring the exception and continuing", e);
                     }
                 }
 
@@ -235,7 +241,7 @@ public class Reflections extends ReflectionUtils {
         Integer keys = store.getKeysCount();
         Integer values = store.getValuesCount();
 
-        log.info(format("Reflections took %d ms to scan %d urls, producing %d keys and %d values %s",
+        if (log != null) log.info(format("Reflections took %d ms to scan %d urls, producing %d keys and %d values %s",
                 time, configuration.getUrls().size(), keys, values,
                 executorService != null && executorService instanceof ThreadPoolExecutor ?
                         format("[using %d cores]", ((ThreadPoolExecutor) executorService).getMaximumPoolSize()) : ""));
@@ -246,7 +252,9 @@ public class Reflections extends ReflectionUtils {
         if (configuration.acceptsInput(input)) {
             for (Scanner scanner : configuration.getScanners()) {
                 try {
-                    if (scanner.acceptsInput(input)) { scanner.scan(file); }
+                    if (scanner.acceptsInput(input)) {
+                        scanner.scan(file);
+                    }
                 } catch (Exception e) {
                     log.warn("could not scan file " + file.getFullPath() + " with scanner " + scanner.getName(), e);
                 }
@@ -258,19 +266,20 @@ public class Reflections extends ReflectionUtils {
      * <p>by default, resources are collected from all urls that contains the package META-INF/reflections
      * and includes files matching the pattern .*-reflections.xml */
     public static Reflections collect() {
-        return new Reflections(new ConfigurationBuilder()).
-            collect("META-INF/reflections", new FilterBuilder().include(".*-reflections.xml"));
+        return collect("META-INF/reflections", new FilterBuilder().include(".*-reflections.xml"));
     }
 
     /**
      * collect saved Reflections resources from all urls that contains the given packagePrefix and matches the given resourceNameFilter
-     * and de-serializes them using the serializer configured in the configuration
+     * and de-serializes them using the default serializer {@link org.reflections.serializers.XmlSerializer} or using the optionally supplied optionalSerializer
      * <p>
      * it is preferred to use a designated resource prefix (for example META-INF/reflections but not just META-INF),
      * so that relevant urls could be found much faster
+     * @param optionalSerializer - optionally supply one serializer instance. if not specified or null, the default serializer will be used
      */
-    public Reflections collect(final String packagePrefix, final Predicate<String> resourceNameFilter) {
-        return collect(packagePrefix, resourceNameFilter, configuration.getSerializer());
+    public static Reflections collect(final String packagePrefix, final Predicate<String> resourceNameFilter, @Nullable Serializer... optionalSerializer) {
+        Serializer serializer = optionalSerializer != null && optionalSerializer.length == 1 ? optionalSerializer[0] : new ConfigurationBuilder().getSerializer();
+        return new Reflections().collect(packagePrefix, resourceNameFilter, serializer);
     }
 
     /**
@@ -286,11 +295,12 @@ public class Reflections extends ReflectionUtils {
             try {
                 inputStream = file.openInputStream();
                 merge(serializer.read(inputStream));
-                log.info("Reflections collected metadata from " + file + " using serializer " + serializer.getClass().getName());
+                if (log != null) //noinspection ConstantConditions
+                    log.info("Reflections collected metadata from " + file + " using serializer " + serializer.getClass().getName());
             } catch (IOException e) {
                 throw new ReflectionsException("could not merge " + file, e);
             } finally {
-                Utils.close(inputStream);
+                close(inputStream);
             }
         }
 
@@ -303,7 +313,8 @@ public class Reflections extends ReflectionUtils {
     public Reflections collect(final InputStream inputStream) {
         try {
             merge(configuration.getSerializer().read(inputStream));
-            log.info("Reflections collected metadata from input stream using serializer " + configuration.getSerializer().getClass().getName());
+            if (log != null) //noinspection ConstantConditions
+                log.info("Reflections collected metadata from input stream using serializer " + configuration.getSerializer().getClass().getName());
         } catch (Exception ex) {
             throw new ReflectionsException("could not merge input stream", ex);
         }
@@ -323,7 +334,7 @@ public class Reflections extends ReflectionUtils {
         } catch (FileNotFoundException e) {
             throw new ReflectionsException("could not obtain input stream from file " + file, e);
         } finally {
-            if (inputStream != null) try { inputStream.close(); } catch (IOException e) { /*fuck off*/ }
+            Utils.close(inputStream);
         }
     }
 
@@ -399,7 +410,7 @@ public class Reflections extends ReflectionUtils {
 
         Set<Method> result = Sets.newHashSet();
         for (String annotated : annotatedWith) {
-            result.add(Utils.getMethodFromDescriptor(annotated, configuration.getClassLoaders()));
+            result.add(getMethodFromDescriptor(annotated, configuration.getClassLoaders()));
         }
 
         return result;
@@ -423,7 +434,7 @@ public class Reflections extends ReflectionUtils {
 
         Collection<String> annotatedWith = store.getFieldsAnnotatedWith(annotation.getName());
         for (String annotated : annotatedWith) {
-            result.add(Utils.getFieldFromString(annotated, configuration.getClassLoaders()));
+            result.add(getFieldFromString(annotated, configuration.getClassLoaders()));
         }
 
         return result;
@@ -450,7 +461,7 @@ public class Reflections extends ReflectionUtils {
 
         Set<String> converters = store.getConverters(from.getName(), to.getName());
         for (String converter : converters) {
-            result.add(Utils.getMethodFromDescriptor(converter, configuration.getClassLoaders()));
+            result.add(getMethodFromDescriptor(converter, configuration.getClassLoaders()));
         }
 
         return result;
@@ -498,7 +509,8 @@ public class Reflections extends ReflectionUtils {
      */
     public File save(final String filename, final Serializer serializer) {
         File file = serializer.save(this, filename);
-        log.info("Reflections successfully saved in " + file + " using " + serializer.getClass().getSimpleName());
+        if (log != null) //noinspection ConstantConditions
+            log.info("Reflections successfully saved in " + file.getAbsolutePath() + " using " + serializer.getClass().getSimpleName());
         return file;
     }
 }

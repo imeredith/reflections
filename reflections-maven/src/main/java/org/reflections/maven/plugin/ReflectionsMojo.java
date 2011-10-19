@@ -11,16 +11,19 @@ import org.jfrog.maven.annomojo.annotations.MojoPhase;
 import org.reflections.Reflections;
 import org.reflections.ReflectionsException;
 import org.reflections.scanners.*;
+import org.reflections.serializers.JavaCodeSerializer;
 import org.reflections.serializers.Serializer;
+import org.reflections.util.ClasspathHelper;
 import org.reflections.util.ConfigurationBuilder;
 import org.reflections.util.FilterBuilder;
 
 import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+
+import static org.reflections.util.Utils.isEmpty;
 
 /** maven plugin for Reflections
  * <p> use it by configuring the pom with:
@@ -30,7 +33,7 @@ import java.util.Set;
  *           &#60;plugin>
  *               &#60;groupId>org.reflections&#60;/groupId>
  *               &#60;artifactId>reflections-maven&#60;/artifactId>
- *               &#60;version>0.9.5 or whatever the version might be&#60;/version>
+ *               &#60;version>0.9.5&#60;/version>
  *               &#60;executions>
  *                   &#60;execution>
  *                       &#60;goals>
@@ -47,131 +50,163 @@ import java.util.Set;
  *   &#60;/build>
  * </pre>
  * <ul>configurations:
- * <li>{@link org.reflections.maven.plugin.ReflectionsMojo#scanners} - a comma separated list of scanner classes,
- * defaults to "org.reflections.scanners.TypeAnnotationsScanner, org.reflections.scanners.SubTypesScanner"
+ * <li>{@link org.reflections.maven.plugin.ReflectionsMojo#scanners} - a comma separated list of scanner classes names (fully qualified names or simple names).
+ * defaults to {@link org.reflections.scanners.TypeAnnotationsScanner}, {@link org.reflections.scanners.SubTypesScanner}
  * <li>{@link org.reflections.maven.plugin.ReflectionsMojo#includeExclude} - a comma separated list of include exclude filters,
- * to be used with {@link org.reflections.util.FilterBuilder} to filter the inputs and the results of all scanners,
- * defaults to "-java., -javax., -sun., -com.sun."
- * <li>{@link org.reflections.maven.plugin.ReflectionsMojo#destinations} - a comma separated list of destinations to save metadata to,
+ * to be used with {@link org.reflections.util.FilterBuilder} to filter the inputs of all scanners.
+ * defaults to "-java\..*, -javax\..*, -sun\..*, -com\.sun\..*"
+ * <li>{@link org.reflections.maven.plugin.ReflectionsMojo#destination} - destination path to save metadata to.
  * defaults to ${project.build.outputDirectory}/META-INF/reflections/${project.artifactId}-reflections.xml
- * <li>{@link org.reflections.maven.plugin.ReflectionsMojo#serializer} - fully qualified name of the serializer to be used for saving,
+ * <li>{@link org.reflections.maven.plugin.ReflectionsMojo#serializer} - serializer class name to be used for saving (fully qualified names or simple names).
  * defaults to {@link org.reflections.serializers.XmlSerializer}
  * <li>{@link org.reflections.maven.plugin.ReflectionsMojo#parallel} - indicates whether to use parallel scanning of classes, using j.u.c FixedThreadPool,
  * defaults to false
+ * <li>{@link org.reflections.maven.plugin.ReflectionsMojo#scanTest} - If set to true, the mojo will generate the metadata for the test classes as well
  * */
 @MojoGoal("reflections")
 @MojoPhase("process-classes")
 public class ReflectionsMojo extends MvnInjectableMojoSupport {
 
-    @MojoParameter(description = "a comma separated list of scanner classes")
+    @MojoParameter(description = "a comma separated list of scanner classes names (fully qualified names or simple names)." +
+            "defaults to {@link org.reflections.scanners.TypeAnnotationsScanner}, {@link org.reflections.scanners.SubTypesScanner}")
     private String scanners;
 
-    @MojoParameter(description = "a comma separated list of include exclude filters, to be used with {@link org.reflections.util.FilterBuilder}" +
-            " to filter the inputs and the results of all scanners"
-            , defaultValue = "-java., -javax., -sun., -com.sun.")
+    @MojoParameter(description = "a comma separated list of include exclude filters, to be used with {@link org.reflections.util.FilterBuilder} to filter the inputs of all scanners." +
+            "defaults to \"-java\\..*, -javax\\..*, -sun\\..*, -com\\.sun\\..*\""
+            , defaultValue = "-java\\..*, -javax\\..*, -sun\\..*, -com\\.sun\\..*")
     private String includeExclude;
 
-    @MojoParameter(description = "a comma separated list of destinations to save metadata to." +
-            "<p>defaults to ${project.build.outputDirectory}/META-INF/reflections/${project.artifactId}-reflections.xml"
+    @MojoParameter(description = "destination path to save metadata to." +
+            "defaults to ${project.build.outputDirectory}/META-INF/reflections/${project.artifactId}-reflections.xml"
             , defaultValue = "${project.build.outputDirectory}/META-INF/reflections/${project.artifactId}-reflections.xml")
-    private String destinations;
+    private String destination;
 
-    @MojoParameter(description = "fully qualified name of the serializer to be used for saving. defaults to {@link org.reflections.serializers.XmlSerializer}")
+    @MojoParameter(description = "serializer class name to be used for saving (fully qualified names or simple names)." +
+            "defaults to {@link org.reflections.serializers.XmlSerializer}")
     private String serializer;
 
-    @MojoParameter(description = "indicates whether to use parallel scanning of classes, using j.u.c FixedThreadPool"
+    @MojoParameter(description = "indicates whether to use parallel scanning of classes, using j.u.c FixedThreadPool." +
+            "default to false"
             , defaultValue = "false")
     private Boolean parallel;
 
+    @MojoParameter(description = "If set to true, the mojo will generate the metadata for the test classes as well", defaultValue = "false")
+    private boolean scanTest;
+
     public void execute() throws MojoExecutionException, MojoFailureException {
         //
-        if (StringUtils.isEmpty(destinations)) {
+        if (StringUtils.isEmpty(destination)) {
             getLog().error("Reflections plugin is skipping because it should have been configured with parse non empty destinations parameter");
             return;
         }
 
-        String outputDirectory = getProject().getBuild().getOutputDirectory();
+        String outputDirectory = resolveOutputDirectory();
         if (!new File(outputDirectory).exists()) {
             getLog().warn(String.format("Reflections plugin is skipping because %s was not found", outputDirectory));
             return;
         }
 
         //
+        ConfigurationBuilder config = new ConfigurationBuilder();
 
-        ConfigurationBuilder configurationBuilder = new ConfigurationBuilder()
-                .setUrls(Arrays.asList(parseOutputDirUrl()))
-                .setScanners(new SubTypesScanner(), new TypeAnnotationsScanner());
+        config.setUrls(parseUrls());
 
-        FilterBuilder filter = FilterBuilder.parse(includeExclude);
+        if (!isEmpty(includeExclude)) {
+            config.filterInputsBy(FilterBuilder.parse(includeExclude));
+        }
 
-        configurationBuilder.filterInputsBy(filter);
+        config.setScanners(!isEmpty(scanners) ? parseScanners() : new Scanner[]{new SubTypesScanner(), new TypeAnnotationsScanner()});
 
-        Serializer serializerInstance = null;
-        if (serializer != null && serializer.length() != 0) {
+        if (!isEmpty(serializer)) {
             try {
-                serializerInstance = (Serializer) Class.forName(serializer).newInstance();
-                configurationBuilder.setSerializer(serializerInstance);
+                Serializer serializerInstance = (Serializer) forName(serializer, "org.reflections.serializers").newInstance();
+                config.setSerializer(serializerInstance);
+
+                if (serializerInstance instanceof JavaCodeSerializer) {
+                    int size = config.getScanners().size();
+                    config.addScanners(new TypesScanner(), new TypeElementsScanner());
+                    if (size != config.getScanners().size()) {
+                        getLog().info("added type scanners for JavaCodeSerializer");
+                    }
+                }
             } catch (Exception ex) {
                 throw new ReflectionsException("could not create serializer instance", ex);
             }
         }
 
-        final Set<Scanner> scannerInstances;
-        if (scanners != null && scanners.length() != 0) {
-            scannerInstances = parseScanners(filter);
-        } else {
-            scannerInstances = Sets.<Scanner>newHashSet(new SubTypesScanner(), new TypeAnnotationsScanner());
-        }
-
-        if (serializerInstance != null) {
-            scannerInstances.add(new TypesScanner());
-            scannerInstances.add(new TypeElementsScanner());
-            getLog().info("added type scanners");
-        }
-
-        configurationBuilder.setScanners(scannerInstances.toArray(new Scanner[]{}));
-
         if (parallel != null && parallel.equals(Boolean.TRUE)) {
-            configurationBuilder.useParallelExecutor();
+            config.useParallelExecutor();
         }
 
-        Reflections reflections = new Reflections(configurationBuilder);
-
-        for (String destination : parseDestinations()) {
-            reflections.save(destination.trim());
+        //
+        if (Reflections.log == null) {
+            Reflections.log = new MavenLogAdapter(getLog());
         }
+        Reflections reflections = new Reflections(config);
+
+        reflections.save(destination.trim());
     }
 
-    private Set<Scanner> parseScanners(FilterBuilder filter) throws MojoExecutionException {
+    private Set<URL> parseUrls() throws MojoExecutionException {
+        final Set<URL> urls = Sets.newHashSet();
+        urls.add(parseOutputDirUrl());
+
+        if (!isEmpty(includeExclude)) {
+            for (String string : includeExclude.split(",")) {
+                String trimmed = string.trim();
+                char prefix = trimmed.charAt(0);
+                String pattern = trimmed.substring(1);
+                if (prefix == '+') {
+                    urls.addAll(ClasspathHelper.forPackage(pattern));
+                }
+            }
+        }
+
+        return urls;
+    }
+
+    private Scanner[] parseScanners() throws MojoExecutionException {
         Set<Scanner> scannersSet = new HashSet<Scanner>(0);
 
         if (StringUtils.isNotEmpty(scanners)) {
             String[] scannerClasses = scanners.split(",");
             for (String scannerClass : scannerClasses) {
-                String trimmed = scannerClass.trim();
                 try {
-                    Scanner scanner = (Scanner) Class.forName(scannerClass).newInstance();
-                    scanner.filterResultsBy(filter);
-                    scannersSet.add(scanner);
+                    scannersSet.add((Scanner) forName(scannerClass.trim(), "org.reflections.scanners").newInstance());
                 } catch (Exception e) {
-                    throw new MojoExecutionException(String.format("could not find scanner %s [%s]",trimmed,scannerClass), e);
+                    throw new MojoExecutionException(String.format("error getting scanner %s or org.reflections.scanners.%s", scannerClass.trim(), scannerClass.trim()), e);
                 }
             }
         }
 
-        return scannersSet;
+        return scannersSet.toArray(new Scanner[scannersSet.size()]);
     }
 
-    private String[] parseDestinations() {
-        return destinations.split(",");
+    @SuppressWarnings({"unchecked"})
+    private static <T> Class<T> forName(String name, String... prefixes) throws ClassNotFoundException {
+        try {
+            return (Class<T>) Class.forName(name.trim());
+        } catch (Exception e) {
+            if (prefixes != null) {
+                for (String prefix : prefixes) {
+                    try { return (Class<T>) Class.forName(prefix + "." + name.trim()); }
+                    catch (Exception e1) { /*ignore*/ }
+                }
+            }
+        }
+        throw new ClassNotFoundException(name);
     }
 
     private URL parseOutputDirUrl() throws MojoExecutionException {
         try {
-            File outputDirectoryFile = new File(getProject().getBuild().getOutputDirectory() + '/');
+            File outputDirectoryFile = new File(resolveOutputDirectory() + '/');
             return outputDirectoryFile.toURI().toURL();
         } catch (MalformedURLException e) {
             throw new MojoExecutionException(e.getMessage(), e);
         }
+    }
+
+    private String resolveOutputDirectory() {
+        return scanTest ? getProject().getBuild().getTestOutputDirectory() : getProject().getBuild().getOutputDirectory();
     }
 }

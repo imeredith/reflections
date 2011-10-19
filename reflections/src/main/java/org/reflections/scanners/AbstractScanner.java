@@ -6,11 +6,7 @@ import com.google.common.collect.Multimap;
 import org.reflections.Configuration;
 import org.reflections.ReflectionsException;
 import org.reflections.adapters.MetadataAdapter;
-import org.reflections.util.Utils;
 import org.reflections.vfs.Vfs;
-
-import java.io.IOException;
-import java.io.InputStream;
 
 /**
  *
@@ -31,15 +27,11 @@ public abstract class AbstractScanner implements Scanner {
     }
 
     public void scan(Vfs.File file) {
-        InputStream inputStream = null;
         try {
-            inputStream = file.openInputStream();
-            Object cls = configuration.getMetadataAdapter().createClassObject(inputStream);
-            scan(cls);
-        } catch (IOException e) {
+            final Object classObject = getMetadataAdapter().getOfCreateClassObject(file);
+            scan(classObject);
+        } catch (Exception e) {
             throw new ReflectionsException("could not create class file from " + file.getName(), e);
-        } finally {
-            Utils.close(inputStream);
         }
     }
 
@@ -82,4 +74,13 @@ public abstract class AbstractScanner implements Scanner {
 	protected MetadataAdapter getMetadataAdapter() {
 		return configuration.getMetadataAdapter();
 	}
+
+    //
+    @Override public boolean equals(Object o) {
+        return this == o || o != null && getClass() == o.getClass();
+    }
+
+    @Override public int hashCode() {
+        return getClass().hashCode();
+    }
 }

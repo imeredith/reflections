@@ -1,5 +1,7 @@
 package org.reflections.adapters;
 
+import org.reflections.vfs.Vfs;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
@@ -37,11 +39,13 @@ public interface MetadataAdapter<C,F,M> {
 
     String getFieldName(final F field);
 
-    C createClassObject(InputStream inputStream) throws IOException;
+    C getOfCreateClassObject(Vfs.File file) throws Exception;
 
     String getMethodModifier(M method);
 
     String getMethodKey(C cls, M method);
 
     String getMethodFullKey(C cls, M method);
+
+    boolean isPublic(Object o);
 }

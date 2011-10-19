@@ -207,6 +207,8 @@ public class ReflectionsTest {
                 new FilterBuilder().include(".*-reflections.xml").exclude("testModel-reflections.xml"),
                 new XmlSerializer());
 
+        //todo what about duplicates?
+
         testAll();
     }
 

@@ -3,6 +3,7 @@ package org.reflections.util;
 import com.google.common.collect.Sets;
 import org.reflections.Reflections;
 import org.reflections.vfs.Vfs;
+import sun.net.www.ParseUtil;
 
 import javax.servlet.ServletContext;
 import java.io.File;
@@ -48,14 +49,17 @@ public abstract class ClasspathHelper {
 
         final ClassLoader[] loaders = classLoaders(classLoaders);
         final String resourceName = name.replace(".", "/");
+        String encodedResourceName = ParseUtil.encodePath(resourceName);
 
         for (ClassLoader classLoader : loaders) {
             try {
                 final Enumeration<URL> urls = classLoader.getResources(resourceName);
                 while (urls.hasMoreElements()) {
                     final URL url = urls.nextElement();
-                    final URL normalizedUrl = new URL(url.toExternalForm().substring(0, url.toExternalForm().lastIndexOf(resourceName)));
-                    result.add(normalizedUrl);
+                    int index = url.toExternalForm().lastIndexOf(encodedResourceName);
+                    if (index != -1) {
+                        result.add(new URL(url.toExternalForm().substring(0, index)));
+                    }
                 }
             } catch (IOException e) {
                 e.printStackTrace();

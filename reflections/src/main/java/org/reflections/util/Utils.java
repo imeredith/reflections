@@ -9,6 +9,7 @@ import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -33,6 +34,10 @@ public abstract class Utils {
         return s == null || s.length() == 0;
     }
 
+    public static boolean isEmpty(Object[] objects) {
+        return objects == null || objects.length == 0;
+    }
+
     public static File prepareFile(String filename) {
         File file = new File(filename);
         File parent = file.getAbsoluteFile().getParentFile();
@@ -41,6 +46,19 @@ public abstract class Utils {
             parent.mkdirs();
         }
         return file;
+    }
+
+    public static <T> Iterable<T> forArray(final T[] elements) {
+        return new Iterable<T>() {
+            public Iterator<T> iterator() {
+                return new Iterator<T>() {
+                    int i = 0;
+                    public boolean hasNext() { return i < elements.length; }
+                    public T next() { return elements[i++]; }
+                    public void remove() { throw new UnsupportedOperationException(); }
+                };
+            }
+        };
     }
 
     public static Method getMethodFromDescriptor(String descriptor, ClassLoader... classLoaders) throws ReflectionsException {

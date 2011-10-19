@@ -11,8 +11,6 @@ import org.reflections.Reflections;
 import org.reflections.ReflectionsException;
 import org.reflections.scanners.TypeElementsScanner;
 import org.reflections.scanners.TypesScanner;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -22,7 +20,9 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.*;
 
-import static org.reflections.util.Utils.*;
+import static org.reflections.Reflections.log;
+import static org.reflections.util.Utils.prepareFile;
+import static org.reflections.util.Utils.repeat;
 
 /** serialization of Reflections to java code
  * <p> serializes types and types elements into interfaces respectively to fully qualified name,
@@ -48,7 +48,6 @@ import static org.reflections.util.Utils.*;
  * <p><p>the {@link #save(org.reflections.Reflections, String)} method filename should be in the pattern: path/path/path/package.package.classname
  * */
 public class JavaCodeSerializer implements Serializer {
-    private static final Logger log = LoggerFactory.getLogger(JavaCodeSerializer.class);
 
     private static final char pathSeparator = '$';
     private static final String arrayDescriptor = "$$";
@@ -120,7 +119,7 @@ public class JavaCodeSerializer implements Serializer {
     public String toString(Reflections reflections) {
         if (reflections.getStore().get(TypesScanner.class).isEmpty() ||
                 reflections.getStore().get(TypeElementsScanner.class).isEmpty()) {
-            log.warn("JavaCodeSerializer needs TypeScanner and TypeElemenetsScanner configured");
+            if (log != null) log.warn("JavaCodeSerializer needs TypeScanner and TypeElemenetsScanner configured");
         }
 
         StringBuilder sb = new StringBuilder();

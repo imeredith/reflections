@@ -14,9 +14,7 @@ import org.reflections.serializers.Serializer;
 import org.reflections.serializers.XmlSerializer;
 
 import java.net.URL;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -55,7 +53,13 @@ public class ConfigurationBuilder implements Configuration {
 
     /** set the scanners instances for scanning different metadata */
     public ConfigurationBuilder setScanners(final Scanner... scanners) {
-        this.scanners.addAll(Arrays.asList(scanners));
+        this.scanners.clear();
+        return addScanners(scanners);
+    }
+
+    /** set the scanners instances for scanning different metadata */
+    public ConfigurationBuilder addScanners(final Scanner... scanners) {
+        this.scanners.addAll(Sets.newHashSet(scanners));
         return this;
     }
 
