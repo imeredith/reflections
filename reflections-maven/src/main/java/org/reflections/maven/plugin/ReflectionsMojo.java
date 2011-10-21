@@ -71,9 +71,10 @@ public class ReflectionsMojo extends MvnInjectableMojoSupport {
             "defaults to {@link org.reflections.scanners.TypeAnnotationsScanner}, {@link org.reflections.scanners.SubTypesScanner}")
     private String scanners;
 
+    private static final String DEFAULT_INCLUDE_EXCLUDE = "-java\\..*, -javax\\..*, -sun\\..*, -com\\.sun\\..*";
     @MojoParameter(description = "a comma separated list of include exclude filters, to be used with {@link org.reflections.util.FilterBuilder} to filter the inputs of all scanners." +
-            "defaults to \"-java\\..*, -javax\\..*, -sun\\..*, -com\\.sun\\..*\""
-            , defaultValue = "-java\\..*, -javax\\..*, -sun\\..*, -com\\.sun\\..*")
+            "defaults to " + DEFAULT_INCLUDE_EXCLUDE
+            , defaultValue = DEFAULT_INCLUDE_EXCLUDE)
     private String includeExclude;
 
     @MojoParameter(description = "destination path to save metadata to." +
@@ -140,7 +141,11 @@ public class ReflectionsMojo extends MvnInjectableMojoSupport {
 
         //
         if (Reflections.log == null) {
-            Reflections.log = new MavenLogAdapter(getLog());
+            try {
+                Reflections.log = new MavenLogAdapter(getLog());
+            } catch (Error e) {
+                //ignore
+            }
         }
         Reflections reflections = new Reflections(config);
 
