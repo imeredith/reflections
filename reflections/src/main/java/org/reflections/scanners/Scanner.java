@@ -12,15 +12,17 @@ public interface Scanner {
 
     String getName();
 
+    void setConfiguration(Configuration configuration);
+
+    Multimap<String, String> getStore();
+
+    void setStore(Multimap<String, String> store);
+
+    Scanner filterResultsBy(Predicate<String> filter);
+
     boolean acceptsInput(String file);
 
     void scan(Vfs.File file);
 
-    Predicate<String> getResultFilter();
-
-    Scanner filterResultsBy(Predicate<String> filter);
-
-	void setConfiguration(Configuration configuration);
-
-	void setStore(Multimap<String, String> store);
+    boolean acceptResult(String fqn);
 }

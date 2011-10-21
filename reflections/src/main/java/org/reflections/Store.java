@@ -89,8 +89,10 @@ public class Store {
 
     /** merges given store into this */
     void merge(final Store outer) {
-        for (String indexName : outer.storeMap.keySet()) {
-            this.storeMap.get(indexName).putAll(outer.get(indexName));
+        if (outer != null) {
+            for (String indexName : outer.storeMap.keySet()) {
+                this.storeMap.get(indexName).putAll(outer.get(indexName));
+            }
         }
     }
 
@@ -128,6 +130,13 @@ public class Store {
     }
 
     /**
+     * get types directly annotated with a given annotation, both classes and annotations
+     */
+    public Set<String> getTypesAnnotatedWithDirectly(final String annotation) {
+        return get(TypeAnnotationsScanner.class, annotation);
+    }
+
+    /**
      * get types annotated with a given annotation, both classes and annotations
      * <p>{@link java.lang.annotation.Inherited} is honored
      * <p><i>Note that this (@Inherited) meta-annotation type has no effect if the annotated type is used for anything other than a class.
@@ -147,27 +156,34 @@ public class Store {
         final Set<String> result = new HashSet<String>();
 
         if (isAnnotation(annotation)) {
-            final Set<String> types = get(TypeAnnotationsScanner.class, annotation);
-            result.addAll(types); //directly annotated
+            final Set<String> types = getTypesAnnotatedWithDirectly(annotation);
+            Set<String> inherited = getInheritedSubTypes(types, annotation, honorInherited);
+            result.addAll(inherited);
+        }
+        return result;
+    }
 
-            if (honorInherited && isInheritedAnnotation(annotation)) {
-                //when honoring @Inherited, meta-annotation should only effect annotated super classes and it's sub types
-                for (String type : types) {
-                    if (isClass(type)) {
-                        result.addAll(getSubTypesOf(type));
-                    }
+    public Set<String> getInheritedSubTypes(Iterable<String> types, String annotation, boolean honorInherited) {
+        Set<String> result = Sets.newHashSet(types);
+
+        if (honorInherited && isInheritedAnnotation(annotation)) {
+            //when honoring @Inherited, meta-annotation should only effect annotated super classes and it's sub types
+            for (String type : types) {
+                if (isClass(type)) {
+                    result.addAll(getSubTypesOf(type));
                 }
-            } else if (!honorInherited) {
-                //when not honoring @Inherited, meta annotation effects all subtypes, including annotations interfaces and classes
-                for (String type : types) {
-                    if (isAnnotation(type)) {
-                        result.addAll(getTypesAnnotatedWith(annotation, false));
-                    } else if (hasSubTypes(type)) {
-                        result.addAll(getSubTypesOf(type));
-                    }
+            }
+        } else if (!honorInherited) {
+            //when not honoring @Inherited, meta annotation effects all subtypes, including annotations interfaces and classes
+            for (String type : types) {
+                if (isAnnotation(type)) {
+                    result.addAll(getTypesAnnotatedWith(type, false));
+                } else {
+                    result.addAll(getSubTypesOf(type));
                 }
             }
         }
+
         return result;
     }
 
@@ -179,11 +195,6 @@ public class Store {
     /** get fields annotated with a given annotation */
     public Set<String> getFieldsAnnotatedWith(String annotation) {
         return get(FieldAnnotationsScanner.class, annotation);
-    }
-
-    /** get 'converter' methods that could effectively convert from type 'from' to type 'to' */
-    public Set<String> getConverters(String from, String to) {
-        return get(ConvertersScanner.class, ConvertersScanner.getConverterKey(from, to));
     }
 
     /** get resources relative paths where simple name (key) equals given name */
@@ -234,12 +245,7 @@ public class Store {
 
     /** does the given type has sub types, based on the metadata stored by SubTypesScanner */
     public boolean hasSubTypes(String typeAnnotatedWith) {
-        return getSuperTypes().contains(typeAnnotatedWith);
-    }
-
-    /** get all super types that have stored sub types, based on the metadata stored by SubTypesScanner */
-    public Multiset<String> getSuperTypes() {
-        return get(SubTypesScanner.class).keys();
+        return get(SubTypesScanner.class).keys().contains(typeAnnotatedWith);
     }
 
     /** get all annotations, based on metadata stored by TypeAnnotationsScanner */

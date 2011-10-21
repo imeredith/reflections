@@ -25,7 +25,7 @@ import static javassist.bytecode.AccessFlag.*;
  */
 public class JavassistAdapter implements MetadataAdapter<ClassFile, FieldInfo, MethodInfo> {
 
-    private Cache<Vfs.File, ClassFile> classFileCache = CacheBuilder.newBuilder().softValues().weakKeys().maximumSize(4).expireAfterWrite(500, TimeUnit.MILLISECONDS).
+    private Cache<Vfs.File, ClassFile> classFileCache = CacheBuilder.newBuilder().softValues().weakKeys().maximumSize(16).expireAfterWrite(500, TimeUnit.MILLISECONDS).
             build(new CacheLoader<Vfs.File, ClassFile>() {
                 @Override public ClassFile load(Vfs.File key) throws Exception {
                     return createClassObject(key);

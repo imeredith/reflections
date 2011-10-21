@@ -67,8 +67,8 @@ public abstract class AbstractScanner implements Scanner {
     }
 
     //
-    protected boolean acceptResult(final String fqn) {
-		return fqn != null && getResultFilter().apply(fqn);
+    public boolean acceptResult(final String fqn) {
+		return fqn != null && resultFilter.apply(fqn);
 	}
 
 	protected MetadataAdapter getMetadataAdapter() {

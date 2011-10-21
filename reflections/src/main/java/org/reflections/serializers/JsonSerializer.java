@@ -2,12 +2,14 @@ package org.reflections.serializers;
 
 import com.google.common.base.Supplier;
 import com.google.common.collect.*;
+import com.google.common.io.Files;
 import com.google.gson.*;
 import org.reflections.Reflections;
 import org.reflections.util.Utils;
 
 import java.io.*;
 import java.lang.reflect.Type;
+import java.nio.charset.Charset;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -32,23 +34,13 @@ public class JsonSerializer implements Serializer {
     }
 
     public File save(Reflections reflections, String filename) {
-        final String s = toString(reflections);
-        File file = Utils.prepareFile(filename);
-        FileWriter writer = null;
         try {
-            writer = new FileWriter(file);
-            writer.write(s);
+            File file = Utils.prepareFile(filename);
+            Files.write(toString(reflections), file, Charset.defaultCharset());
+            return file;
         } catch (IOException e) {
             throw new RuntimeException(e);
-        } finally {
-            try {
-                if (writer != null) writer.close();
-            } catch (Exception e) {
-                //noinspection ThrowFromFinallyBlock
-                throw new RuntimeException(e);
-            }
         }
-        return null;
     }
 
     public String toString(Reflections reflections) {

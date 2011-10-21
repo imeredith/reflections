@@ -2,6 +2,7 @@ package org.reflections;
 
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -24,46 +25,38 @@ public abstract class ReflectionUtils {
     @SuppressWarnings({"unchecked"}) public final static List<Class> primitiveTypes = Lists.<Class>newArrayList(boolean.class, char.class, byte.class, short.class, int.class, long.class, float.class, double.class, void.class);
     public final static List<String> primitiveDescriptors = Lists.newArrayList("Z", "C", "B", "S", "I", "J", "F", "D", "V");
 
-    public static <T extends AnnotatedElement> Set<T> getAll(final Iterable<T> elements, Predicate<? super T>... predicates) {
-        return predicates != null ? Sets.newHashSet(Iterables.filter(elements, Predicates.and(predicates))) : Sets.newHashSet(elements);
+    public static <T extends AnnotatedElement> Set<T> getAll(final Iterable<T> elements, Predicate<? super T> predicate) {
+        return ImmutableSet.copyOf(Iterables.filter(elements, predicate));
     }
 
     /** get all super types of given types, including the types */
-    public static Set<Class<?>> getAllSuperTypes(final Class<?> type, Predicate<? super Class<?>>... predicates) {
+    public static Set<Class<?>> getAllSuperTypes(final Class<?> type, Predicate<? super Class<?>> predicate) {
         Set<Class<?>> result = Sets.newHashSet();
         if (type != null) {
             result.add(type);
-            result.addAll(getAllSuperTypes(type.getSuperclass()));
+            result.addAll(getAllSuperTypes(type.getSuperclass(), Predicates.alwaysTrue()));
             for (Class<?> inter : type.getInterfaces()) {
-                result.addAll(getAllSuperTypes(inter));
+                result.addAll(getAllSuperTypes(inter, Predicates.alwaysTrue()));
             }
         }
-        if (predicates != null) {
-            result = Sets.newHashSet(Iterables.filter(result, Predicates.and(predicates)));
-        }
-        return result;
+        return ImmutableSet.copyOf(Iterables.filter(result, predicate));
     }
 
-    public static Set<Field> getAllFields(final Class<?> type, Predicate<? super Field>... predicates) {
+    public static Set<Field> getAllFields(final Class<?> type, Predicate<? super Field> predicate) {
         Set<Field> result = Sets.newHashSet();
-        for (Class<?> t : getAllSuperTypes(type)) {
+        for (Class<?> t : getAllSuperTypes(type, Predicates.alwaysTrue())) {
             Collections.addAll(result, t.getDeclaredFields());
         }
-        if (predicates != null) {
-            result = Sets.newHashSet(Iterables.filter(result, Predicates.and(predicates)));
-        }
-        return result;
+        return ImmutableSet.copyOf(Iterables.filter(result, predicate));
     }
 
-    public static Set<Method> getAllMethods(final Class<?> type, Predicate<? super Method>... predicates) {
+    public static Set<Method> getAllMethods(final Class<?> type, Predicate<? super Method> predicate) {
         Set<Method> result = Sets.newHashSet();
-        for (Class<?> t : getAllSuperTypes(type)) {
+        for (Class<?> t : getAllSuperTypes(type, Predicates.alwaysTrue())) {
             Collections.addAll(result, t.isInterface() ? t.getMethods() : t.getDeclaredMethods());
         }
-        if (predicates != null) {
-            result = Sets.newHashSet(Iterables.filter(result, Predicates.and(predicates)));
-        }
-        return result;
+
+        return ImmutableSet.copyOf(Iterables.filter(result, predicate));
     }
 
     //
@@ -143,6 +136,29 @@ public abstract class ReflectionUtils {
         };
     }
 
+    public static <T> Predicate<Method> withReturnType(final Class<T> type) {
+        return new Predicate<Method>() {
+            public boolean apply(@Nullable Method input) {
+                return input != null && input.getReturnType().equals(type);
+            }
+        };
+    }
+
+    public static <T> Predicate<Method> withReturnTypeAssignableFrom(final Class<T> type) {
+        return new Predicate<Method>() {
+            public boolean apply(@Nullable Method input) {
+                return input != null && input.getReturnType().isAssignableFrom(type);
+            }
+        };
+    }
+
+    public static <T extends Member> Predicate<T> withModifier(final int mod) {
+        return new Predicate<T>() {
+            public boolean apply(@Nullable T input) {
+                return input != null && (input.getModifiers() & mod) != 0;
+            }
+        };
+    }
     /** checks for annotation member values matching, based on equality of members */
     public static boolean areAnnotationMembersMatching(Annotation annotation1, Annotation annotation2) {
         if (annotation2 != null && annotation1.annotationType() == annotation2.annotationType()) {
@@ -216,6 +232,14 @@ public abstract class ReflectionUtils {
         for (String className : classes) {
             //noinspection unchecked
             result.add((Class<? extends T>) forName(className, classLoaders));
+        }
+        return result;
+    }
+
+    public static List<String> names(Iterable<Class<?>> types) {
+        List<String> result = Lists.newArrayList();
+        for (Class<?> type : types) {
+            result.add(type.getName());
         }
         return result;
     }

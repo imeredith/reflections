@@ -6,6 +6,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 import com.google.common.collect.Sets;
+import com.google.common.io.Files;
 import org.reflections.ReflectionUtils;
 import org.reflections.Reflections;
 import org.reflections.ReflectionsException;
@@ -13,11 +14,11 @@ import org.reflections.scanners.TypeElementsScanner;
 import org.reflections.scanners.TypesScanner;
 
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.nio.charset.Charset;
 import java.util.*;
 
 import static org.reflections.Reflections.log;
@@ -105,9 +106,7 @@ public class JavaCodeSerializer implements Serializer {
             sb.append(toString(reflections));
             sb.append("}\n");
 
-            FileWriter writer = new FileWriter(filename);
-            writer.write(sb.toString());
-            writer.close();
+            Files.write(sb.toString(), new File(filename), Charset.defaultCharset());
 
         } catch (IOException e) {
             throw new RuntimeException();

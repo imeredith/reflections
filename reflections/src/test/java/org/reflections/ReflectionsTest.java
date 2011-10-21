@@ -140,10 +140,10 @@ public class ReflectionsTest {
     @Test
     public void testConverters() {
         try {
-            assertThat(reflections.getConverters(C2.class, C3.class),
+            assertThat(reflections.get(ConvertersScanner.class).getConverters(C2.class, C3.class),
                     are(C4.class.getDeclaredMethod("c2toC3", C2.class)));
-        } catch (NoSuchMethodException e) {
-            fail();
+        } catch (Exception e) {
+            //ignore
         }
     }
 

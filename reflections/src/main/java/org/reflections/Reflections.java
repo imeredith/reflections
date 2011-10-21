@@ -278,8 +278,9 @@ public class Reflections extends ReflectionUtils {
      * @param optionalSerializer - optionally supply one serializer instance. if not specified or null, the default serializer will be used
      */
     public static Reflections collect(final String packagePrefix, final Predicate<String> resourceNameFilter, @Nullable Serializer... optionalSerializer) {
-        Serializer serializer = optionalSerializer != null && optionalSerializer.length == 1 ? optionalSerializer[0] : new ConfigurationBuilder().getSerializer();
-        return new Reflections().collect(packagePrefix, resourceNameFilter, serializer);
+        ConfigurationBuilder configuration = new ConfigurationBuilder().setScanners();
+        Serializer serializer = optionalSerializer != null && optionalSerializer.length == 1 ? optionalSerializer[0] : configuration.getSerializer();
+        return new Reflections(configuration).collect(packagePrefix, resourceNameFilter, serializer);
     }
 
     /**
@@ -348,6 +349,16 @@ public class Reflections extends ReflectionUtils {
 
     //query
 
+    @Nullable public <T extends Scanner> T get(Class<T> scannerClass) {
+        for (Scanner scanner : configuration.getScanners()) {
+            if (scanner.getClass().equals(scannerClass)) {
+                //noinspection unchecked
+                return (T) scanner;
+            }
+        }
+        return null;
+    }
+
     /**
      * gets all sub types in hierarchy of a given type
      * <p/>depends on SubTypesScanner configured, otherwise an empty set is returned
@@ -381,7 +392,6 @@ public class Reflections extends ReflectionUtils {
         return ImmutableSet.copyOf(forNames(typesAnnotatedWith));
     }
 
-    //todo create a string version of these
     /**
      * get types annotated with a given annotation, both classes and annotations, including annotation member values matching
      * <p>{@link java.lang.annotation.Inherited} is honored
@@ -397,8 +407,10 @@ public class Reflections extends ReflectionUtils {
      * <p/>depends on TypeAnnotationsScanner configured, otherwise an empty set is returned
      */
     public Set<Class<?>> getTypesAnnotatedWith(final Annotation annotation, boolean honorInherited) {
-        return getMatchingAnnotations(
-                getTypesAnnotatedWith(annotation.annotationType(), honorInherited), annotation);
+        Set<String> types = store.getTypesAnnotatedWithDirectly(annotation.annotationType().getName());
+        Set<Class<?>> annotated = getAll(forNames(types), withAnnotation(annotation));
+        Set<String> inherited = store.getInheritedSubTypes(names(annotated), annotation.annotationType().getName(), honorInherited);
+        return ImmutableSet.copyOf(forNames(inherited));
     }
 
     /**
@@ -421,8 +433,7 @@ public class Reflections extends ReflectionUtils {
      * <p/>depends on MethodAnnotationsScanner configured, otherwise an empty set is returned
      */
     public Set<Method> getMethodsAnnotatedWith(final Annotation annotation) {
-        return getMatchingAnnotations(
-                getMethodsAnnotatedWith(annotation.annotationType()), annotation);
+        return getAll(getMethodsAnnotatedWith(annotation.annotationType()), withAnnotation(annotation));
     }
 
     /**
@@ -445,26 +456,7 @@ public class Reflections extends ReflectionUtils {
      * <p/>depends on FieldAnnotationsScanner configured, otherwise an empty set is returned
      */
     public Set<Field> getFieldsAnnotatedWith(final Annotation annotation) {
-        return getMatchingAnnotations(
-                getFieldsAnnotatedWith(annotation.annotationType()), annotation);
-    }
-
-    /**
-     * get 'converter' methods that could effectively convert from type 'from' to type 'to'
-     * <p>depends on ConvertersScanner configured, otherwise an empty set is returned
-     *
-     * @param from - the type to convert from
-     * @param to   - the required return type
-     */
-    public Set<Method> getConverters(final Class<?> from, final Class<?> to) {
-        Set<Method> result = Sets.newHashSet();
-
-        Set<String> converters = store.getConverters(from.getName(), to.getName());
-        for (String converter : converters) {
-            result.add(getMethodFromDescriptor(converter, configuration.getClassLoaders()));
-        }
-
-        return result;
+        return getAll(getFieldsAnnotatedWith(annotation.annotationType()), withAnnotation(annotation));
     }
 
     /** get resources relative paths where simple name (key) matches given namePredicate

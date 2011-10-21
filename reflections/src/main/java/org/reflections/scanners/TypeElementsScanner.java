@@ -15,16 +15,16 @@ public class TypeElementsScanner extends AbstractScanner {
 
         if (includeFields) {
             for (Object field : getMetadataAdapter().getFields(cls)) {
-                if (!publicOnly || getMetadataAdapter().isPublic(field)) {
-                    String fieldName = getMetadataAdapter().getFieldName(field);
-                    getStore().put(className, fieldName);
-                }
+                String fieldName = getMetadataAdapter().getFieldName(field);
+                getStore().put(className, fieldName);
             }
         }
 
         if (includeMethods) {
             for (Object method : getMetadataAdapter().getMethods(cls)) {
-                getStore().put(className, getMetadataAdapter().getMethodKey(cls, method));
+                if (!publicOnly || getMetadataAdapter().isPublic(method)) {
+                    getStore().put(className, getMetadataAdapter().getMethodKey(cls, method));
+                }
             }
         }
     }

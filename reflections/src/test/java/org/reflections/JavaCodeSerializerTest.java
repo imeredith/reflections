@@ -27,7 +27,7 @@ public class JavaCodeSerializerTest {
 
         Reflections reflections = new Reflections(new ConfigurationBuilder()
                 .filterInputsBy(filter)
-                .setScanners(new TypesScanner(), new TypeElementsScanner())
+                .setScanners(new TypesScanner(), new TypeElementsScanner().includeFields().publicOnly(false))
                 .setUrls(asList(ClasspathHelper.forClass(TestModel.class))));
 
         //no re-serializing
