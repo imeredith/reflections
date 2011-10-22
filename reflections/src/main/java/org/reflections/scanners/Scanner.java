@@ -10,8 +10,6 @@ import org.reflections.vfs.Vfs;
  */
 public interface Scanner {
 
-    String getName();
-
     void setConfiguration(Configuration configuration);
 
     Multimap<String, String> getStore();

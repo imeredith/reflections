@@ -74,8 +74,12 @@ public class Reflections extends ReflectionUtils {
     @Nullable public static Logger log;
 
     static {
-        Logger logger; try { logger = LoggerFactory.getLogger(Reflections.class); } catch (Error e) { logger = null; }
-        log = logger;
+        try {
+            Class.forName("org.slf4j.impl.StaticLoggerBinder");
+            log = LoggerFactory.getLogger(Reflections.class);
+        } catch (Throwable e) {
+            log = null;
+        }
     }
 
     protected final transient Configuration configuration;
@@ -89,13 +93,15 @@ public class Reflections extends ReflectionUtils {
         this.configuration = configuration;
         store = new Store();
 
-        //inject to scanners
-        for (Scanner scanner : configuration.getScanners()) {
-            scanner.setConfiguration(configuration);
-            scanner.setStore(store.get(scanner));
-        }
+        if (configuration.getScanners() != null && !configuration.getScanners().isEmpty()) {
+            //inject to scanners
+            for (Scanner scanner : configuration.getScanners()) {
+                scanner.setConfiguration(configuration);
+                scanner.setStore(store.getOrCreate(scanner.getClass().getSimpleName()));
+            }
 
-        scan();
+            scan();
+        }
     }
 
     /**
@@ -256,7 +262,7 @@ public class Reflections extends ReflectionUtils {
                         scanner.scan(file);
                     }
                 } catch (Exception e) {
-                    log.warn("could not scan file " + file.getFullPath() + " with scanner " + scanner.getName(), e);
+                    log.warn("could not scan file " + file.getFullPath() + " with scanner " + scanner.getClass().getSimpleName(), e);
                 }
             }
         }

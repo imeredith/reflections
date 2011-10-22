@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <Reflections>
-    <org.reflections.scanners.MethodAnnotationsScanner>
+    <MethodAnnotationsScanner>
         <entry>
             <key>org.reflections.TestModel$AM1</key>
             <values>
@@ -11,8 +11,8 @@
                 <value>org.reflections.TestModel$C4.m1()</value>
             </values>
         </entry>
-    </org.reflections.scanners.MethodAnnotationsScanner>
-    <org.reflections.scanners.FieldAnnotationsScanner>
+    </MethodAnnotationsScanner>
+    <FieldAnnotationsScanner>
         <entry>
             <key>org.reflections.TestModel$AF1</key>
             <values>
@@ -20,5 +20,5 @@
                 <value>org.reflections.TestModel$C4.f2</value>
             </values>
         </entry>
-    </org.reflections.scanners.FieldAnnotationsScanner>
+    </FieldAnnotationsScanner>
 </Reflections>

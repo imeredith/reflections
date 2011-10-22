@@ -1,12 +1,12 @@
 package org.reflections;
 
-import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
 import com.google.common.collect.*;
 import org.reflections.scanners.*;
 import org.reflections.scanners.Scanner;
 
+import javax.annotation.Nullable;
 import java.lang.annotation.Inherited;
 import java.util.*;
 import java.util.regex.Pattern;
@@ -22,37 +22,37 @@ import static com.google.common.collect.Multimaps.*;
 public class Store {
 
 	private final Map<String/*indexName*/, Multimap<String, String>> storeMap;
-
-    public Store(Configuration configuration) {
-        this(configuration.getExecutorService() != null);
-    }
-
-    protected Store(boolean parallelExecutor) {
-        if (parallelExecutor) {
-            storeMap = new MapMaker().makeComputingMap(new Function<String, Multimap<String, String>>() {
-                public Multimap<String, String> apply(String indexName) {
-                    return synchronizedSetMultimap(newSetMultimap(new HashMap<String, Collection<String>>(), new Supplier<Set<String>>() {
-                        public Set<String> get() {
-                            return Sets.newHashSet();
-                        }
-                    }));
-                }
-            });
-        } else {
-            storeMap = new MapMaker().makeComputingMap(new Function<String, Multimap<String, String>>() {
-                public Multimap<String, String> apply(String indexName) {
-                    return Multimaps.newSetMultimap(new HashMap<String, Collection<String>>(), new Supplier<Set<String>>() {
-                        public Set<String> get() {
-                            return Sets.newHashSet();
-                        }
-                    });
-                }
-            });
-        }
-    }
+    private final transient boolean concurrent;
 
     protected Store() {
         this(false);
+    }
+
+    protected Store(boolean concurrent) {
+        this.concurrent = concurrent;
+        storeMap = new HashMap<String, Multimap<String, String>>();
+    }
+
+    private SetMultimap<String, String> createMultimap() {
+        return concurrent ?
+                synchronizedSetMultimap(newSetMultimap(new HashMap<String, Collection<String>>(), setSupplier)) :
+                Multimaps.newSetMultimap(new HashMap<String, Collection<String>>(), setSupplier);
+    }
+
+    public Multimap<String, String> getOrCreate(String indexName) {
+        if (indexName.contains(".")) {
+            indexName = indexName.substring(indexName.lastIndexOf(".") + 1); //convert class name to simple name
+        }
+        Multimap<String, String> mmap = storeMap.get(indexName);
+        if (mmap == null) {
+            storeMap.put(indexName, mmap = createMultimap());
+        }
+        return mmap;
+    }
+
+    /** return the multimap store of the given scanner class. not immutable */
+    @Nullable public Multimap<String, String> get(Class<? extends Scanner> scannerClass) {
+        return storeMap.get(scannerClass.getSimpleName());
     }
 
     /** get the values of given keys stored for the given scanner class */
@@ -60,26 +60,13 @@ public class Store {
         Set<String> result = Sets.newHashSet();
 
         Multimap<String, String> map = get(scannerClass);
-        for (String key : keys) {
-            result.addAll(map.get(key));
+        if (map != null) {
+            for (String key : keys) {
+                result.addAll(map.get(key));
+            }
         }
 
         return result;
-    }
-
-    /** return the multimap store of the given scanner. not immutable */
-	public Multimap<String, String> get(Scanner scanner) {
-        return get(scanner.getClass());
-    }
-
-    /** return the multimap store of the given scanner class. not immutable */
-    public Multimap<String, String> get(Class<? extends Scanner> scannerClass) {
-        return get(scannerClass.getName());
-    }
-
-    /** return the multimap store of the given scanner name. not immutable */
-    public Multimap<String, String> get(final String scannerName) {
-        return storeMap.get(scannerName);
     }
 
     /** return the store map. not immutable*/
@@ -91,7 +78,7 @@ public class Store {
     void merge(final Store outer) {
         if (outer != null) {
             for (String indexName : outer.storeMap.keySet()) {
-                this.storeMap.get(indexName).putAll(outer.get(indexName));
+                getOrCreate(indexName).putAll(outer.storeMap.get(indexName));
             }
         }
     }
@@ -204,10 +191,13 @@ public class Store {
 
     /** get resources relative paths where simple name (key) matches given namePredicate */
     public Set<String> getResources(final Predicate<String> namePredicate) {
-        Set<String> keys = get(ResourcesScanner.class).keySet();
-        Collection<String> matches = Collections2.filter(keys, namePredicate);
-
-        return get(ResourcesScanner.class, matches.toArray(new String[matches.size()]));
+        Multimap<String, String> mmap = get(ResourcesScanner.class);
+        if (mmap != null) {
+            Set<String> matches = Sets.newHashSet(Iterables.filter(mmap.keySet(), namePredicate));
+            return get(ResourcesScanner.class, matches.toArray(new String[matches.size()]));
+        } else {
+            return Sets.newHashSet();
+        }
     }
 
     /** get resources relative paths where simple name (key) matches given regular expression
@@ -235,21 +225,20 @@ public class Store {
 
     /** is the given type is an annotation, based on the metadata stored by TypeAnnotationsScanner */
     public boolean isAnnotation(String typeAnnotatedWith) {
-        return getTypeAnnotations().contains(typeAnnotatedWith);
+        Multimap<String, String> mmap = get(TypeAnnotationsScanner.class);
+        return mmap != null && mmap.keySet().contains(typeAnnotatedWith);
     }
 
     /** is the given annotation an inherited annotation, based on the metadata stored by TypeAnnotationsScanner */
     public boolean isInheritedAnnotation(String typeAnnotatedWith) {
-        return get(TypeAnnotationsScanner.class).get(Inherited.class.getName()).contains(typeAnnotatedWith);
+        Multimap<String, String> mmap = get(TypeAnnotationsScanner.class);
+        return mmap != null && mmap.get(Inherited.class.getName()).contains(typeAnnotatedWith);
     }
 
-    /** does the given type has sub types, based on the metadata stored by SubTypesScanner */
-    public boolean hasSubTypes(String typeAnnotatedWith) {
-        return get(SubTypesScanner.class).keys().contains(typeAnnotatedWith);
-    }
-
-    /** get all annotations, based on metadata stored by TypeAnnotationsScanner */
-    public Set<String> getTypeAnnotations() {
-        return get(TypeAnnotationsScanner.class).keySet();
-    }
+    //
+    private final static transient Supplier<Set<String>> setSupplier = new Supplier<Set<String>>() {
+        public Set<String> get() {
+            return Sets.newHashSet();
+        }
+    };
 }

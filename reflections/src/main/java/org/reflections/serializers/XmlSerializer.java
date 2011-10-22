@@ -35,7 +35,7 @@ import java.util.Map;
 public class XmlSerializer implements Serializer {
 
     public Reflections read(InputStream inputStream) {
-        Reflections reflections = new Reflections(new ConfigurationBuilder()) {};
+        Reflections reflections = new Reflections(new ConfigurationBuilder());
 
         Document document;
         try {
@@ -51,7 +51,7 @@ public class XmlSerializer implements Serializer {
                 Element values = entry.element("values");
                 for (Object o3 : values.elements()) {
                     Element value = (Element) o3;
-                    reflections.getStore().getStoreMap().get(index.getName()).put(key.getText(), value.getText());
+                    reflections.getStore().getOrCreate(index.getName()).put(key.getText(), value.getText());
                 }
             }
         }

@@ -55,13 +55,13 @@ import static org.reflections.util.Utils.isEmpty;
  * <li>{@link org.reflections.maven.plugin.ReflectionsMojo#includeExclude} - a comma separated list of include exclude filters,
  * to be used with {@link org.reflections.util.FilterBuilder} to filter the inputs of all scanners.
  * defaults to "-java\..*, -javax\..*, -sun\..*, -com\.sun\..*"
- * <li>{@link org.reflections.maven.plugin.ReflectionsMojo#destination} - destination path to save metadata to.
+ * <li>{@link org.reflections.maven.plugin.ReflectionsMojo#destinations} - destination path to save metadata to.
  * defaults to ${project.build.outputDirectory}/META-INF/reflections/${project.artifactId}-reflections.xml
  * <li>{@link org.reflections.maven.plugin.ReflectionsMojo#serializer} - serializer class name to be used for saving (fully qualified names or simple names).
  * defaults to {@link org.reflections.serializers.XmlSerializer}
  * <li>{@link org.reflections.maven.plugin.ReflectionsMojo#parallel} - indicates whether to use parallel scanning of classes, using j.u.c FixedThreadPool,
  * defaults to false
- * <li>{@link org.reflections.maven.plugin.ReflectionsMojo#scanTest} - If set to true, the mojo will generate the metadata for the test classes as well
+ * <li>{@link org.reflections.maven.plugin.ReflectionsMojo#tests} - If set to true, the mojo will generate the metadata for the test classes as well
  * */
 @MojoGoal("reflections")
 @MojoPhase("process-classes")
@@ -78,9 +78,8 @@ public class ReflectionsMojo extends MvnInjectableMojoSupport {
     private String includeExclude;
 
     @MojoParameter(description = "destination path to save metadata to." +
-            "defaults to ${project.build.outputDirectory}/META-INF/reflections/${project.artifactId}-reflections.xml"
-            , defaultValue = "${project.build.outputDirectory}/META-INF/reflections/${project.artifactId}-reflections.xml")
-    private String destination;
+            "defaults to ${project.build.outputDirectory/testOutputDirectory}/META-INF/reflections/${project.artifactId}-reflections.xml")
+    private String destinations;
 
     @MojoParameter(description = "serializer class name to be used for saving (fully qualified names or simple names)." +
             "defaults to {@link org.reflections.serializers.XmlSerializer}")
@@ -92,13 +91,12 @@ public class ReflectionsMojo extends MvnInjectableMojoSupport {
     private Boolean parallel;
 
     @MojoParameter(description = "If set to true, the mojo will generate the metadata for the test classes as well", defaultValue = "false")
-    private boolean scanTest;
+    private boolean tests;
 
     public void execute() throws MojoExecutionException, MojoFailureException {
         //
-        if (StringUtils.isEmpty(destination)) {
-            getLog().error("Reflections plugin is skipping because it should have been configured with parse non empty destinations parameter");
-            return;
+        if (StringUtils.isEmpty(destinations)) {
+            destinations = resolveOutputDirectory() + "/META-INF/reflections/" + getProject().getArtifactId() + "-reflections.xml";
         }
 
         String outputDirectory = resolveOutputDirectory();
@@ -149,7 +147,7 @@ public class ReflectionsMojo extends MvnInjectableMojoSupport {
         }
         Reflections reflections = new Reflections(config);
 
-        reflections.save(destination.trim());
+        reflections.save(destinations.trim());
     }
 
     private Set<URL> parseUrls() throws MojoExecutionException {
@@ -212,6 +210,6 @@ public class ReflectionsMojo extends MvnInjectableMojoSupport {
     }
 
     private String resolveOutputDirectory() {
-        return scanTest ? getProject().getBuild().getTestOutputDirectory() : getProject().getBuild().getOutputDirectory();
+        return tests ? getProject().getBuild().getTestOutputDirectory() : getProject().getBuild().getOutputDirectory();
     }
 }

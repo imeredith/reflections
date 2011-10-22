@@ -2,7 +2,6 @@ package org.reflections;
 
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -17,7 +16,20 @@ import java.lang.reflect.Method;
 import java.util.*;
 
 //todo add some ReflectionUtils stuff here
-/** convenient reflection methods */
+/** convenient reflection methods
+ * <p>
+ *     some helper methods to get superTypes, methods, fields matching some predicates, generally:
+ *     <pre>
+ *     Set&#60?> result = getAllXXX(type/s, withYYY)
+ *     Set&#60?> result = getAllXXX(type/s, Predicates.and(withYYY, withZZZ))
+ *     </pre>
+ *     see {@link ReflectionUtils#getAllSuperTypes(Class, com.google.common.base.Predicate)},
+ *     {@link ReflectionUtils#getAllFields(Class, com.google.common.base.Predicate)},
+ *     {@link ReflectionUtils#getAllMethods(Iterable, com.google.common.base.Predicate)},
+ *     {@link ReflectionUtils#getAll(Iterable, com.google.common.base.Predicate)}
+ *     <p>predicates included here all starts with "with", for example {@link ReflectionUtils#withAnnotation(java.lang.annotation.Annotation)}, {@link ReflectionUtils#withModifier(int)}, {@link ReflectionUtils#withParametersAssignableFrom(Class[])}
+ *
+ * */
 public abstract class ReflectionUtils {
 
     //primitive parallel arrays
@@ -25,11 +37,12 @@ public abstract class ReflectionUtils {
     @SuppressWarnings({"unchecked"}) public final static List<Class> primitiveTypes = Lists.<Class>newArrayList(boolean.class, char.class, byte.class, short.class, int.class, long.class, float.class, double.class, void.class);
     public final static List<String> primitiveDescriptors = Lists.newArrayList("Z", "C", "B", "S", "I", "J", "F", "D", "V");
 
-    public static <T extends AnnotatedElement> Set<T> getAll(final Iterable<T> elements, Predicate<? super T> predicate) {
-        return ImmutableSet.copyOf(Iterables.filter(elements, predicate));
-    }
-
-    /** get all super types of given types, including the types */
+    /** get all super types of given {@code type}, including, filtered by {@code predicate}
+     * <p>for example:
+     * <pre>
+     * Set&#60Class&#60?>> annotatedSuperTypes =
+     *      getAllSuperTypes(type, withAnnotation(annotation));
+     * </pre>*/
     public static Set<Class<?>> getAllSuperTypes(final Class<?> type, Predicate<? super Class<?>> predicate) {
         Set<Class<?>> result = Sets.newHashSet();
         if (type != null) {
@@ -39,27 +52,67 @@ public abstract class ReflectionUtils {
                 result.addAll(getAllSuperTypes(inter, Predicates.alwaysTrue()));
             }
         }
-        return ImmutableSet.copyOf(Iterables.filter(result, predicate));
+        return Sets.newHashSet(Iterables.filter(result, predicate));
     }
 
+    public static Set<Class<?>> getAllSuperTypes(final Iterable<Class<?>> types, Predicate<? super Class<?>> predicate) {
+        Set<Class<?>> result = Sets.newHashSet(); for (Class<?> type : types) result.addAll(getAllSuperTypes(type, predicate));
+        return result;
+    }
+
+    /** get all fields of given {@code type}, including, filtered by {@code predicate}
+     * <p>for example:
+     * <pre>
+     * Set&#60Field&#60?>> injectables =
+     *      getAllFields(type,
+     *          Predicates.or(
+     *              withAnnotation(Inject.class),
+     *              withAnnotation(Autowired.class)));
+     * </pre>*/
     public static Set<Field> getAllFields(final Class<?> type, Predicate<? super Field> predicate) {
         Set<Field> result = Sets.newHashSet();
         for (Class<?> t : getAllSuperTypes(type, Predicates.alwaysTrue())) {
             Collections.addAll(result, t.getDeclaredFields());
         }
-        return ImmutableSet.copyOf(Iterables.filter(result, predicate));
+        return Sets.newHashSet(Iterables.filter(result, predicate));
     }
 
+    public static Set<Field> getAllFields(final Iterable<Class<?>> types, Predicate<? super Field> predicate) {
+        Set<Field> result = Sets.newHashSet(); for (Class<?> type : types) result.addAll(getAllFields(type, predicate));
+        return result;
+    }
+
+    /** get all methods of given {@code type}, including, filtered by {@code predicate}
+     * <p>for example:
+     * <pre>
+     * Set&#60Method> getters =
+     *      getAllMethods(someClasses,
+     *          Predicates.and(
+     *              withModifier(Modifier.PUBLIC),
+     *              withPrefix("get"),
+     *              withParametersCount(0)));
+     * </pre>*/
     public static Set<Method> getAllMethods(final Class<?> type, Predicate<? super Method> predicate) {
         Set<Method> result = Sets.newHashSet();
         for (Class<?> t : getAllSuperTypes(type, Predicates.alwaysTrue())) {
             Collections.addAll(result, t.isInterface() ? t.getMethods() : t.getDeclaredMethods());
         }
 
-        return ImmutableSet.copyOf(Iterables.filter(result, predicate));
+        return Sets.newHashSet(Iterables.filter(result, predicate));
     }
 
-    //
+    /** get all methods of given {@code types}, filtered by {@code predicate}*/
+    public static Set<Method> getAllMethods(final Iterable<Class<?>> types, Predicate<? super Method> predicate) {
+        Set<Method> result = Sets.newHashSet(); for (Class<?> type : types) result.addAll(getAllMethods(type, predicate));
+        return Sets.newHashSet(result);
+    }
+
+    /** filter all given {@code elements} with {@code predicate} */
+    public static <T extends AnnotatedElement> Set<T> getAll(final Iterable<T> elements, Predicate<? super T> predicate) {
+        return Sets.newHashSet(Iterables.filter(elements, predicate));
+    }
+
+    /** where member name equals given {@code name} */
     public static <T extends Member> Predicate<T> withName(final String name) {
         return new Predicate<T>() {
             public boolean apply(@Nullable T input) {
@@ -68,6 +121,16 @@ public abstract class ReflectionUtils {
         };
     }
 
+    /** where member name startsWith given {@code prefix} */
+    public static <T extends Member> Predicate<T> withPrefix(final String prefix) {
+        return new Predicate<T>() {
+            public boolean apply(@Nullable T input) {
+                return input != null && input.getName().startsWith(prefix);
+            }
+        };
+    }
+
+    /** where element is annotated with given {@code annotation} */
     public static <T extends AnnotatedElement> Predicate<T> withAnnotation(final Class<? extends Annotation> annotation) {
         return new Predicate<T>() {
             public boolean apply(@Nullable T input) {
@@ -76,6 +139,7 @@ public abstract class ReflectionUtils {
         };
     }
 
+    /** where element is annotated with given {@code annotation}, including member matching */
     public static <T extends AnnotatedElement> Predicate<T> withAnnotation(final Annotation annotation) {
         return new Predicate<T>() {
             public boolean apply(@Nullable T input) {
@@ -85,6 +149,7 @@ public abstract class ReflectionUtils {
         };
     }
 
+    /** when method parameter types equals given {@code types} */
     public static Predicate<Method> withParameters(final Class... types) {
         return new Predicate<Method>() {
             public boolean apply(@Nullable Method input) {
@@ -93,6 +158,7 @@ public abstract class ReflectionUtils {
         };
     }
 
+    /** when method parameter types assignable from given {@code types} */
     public static Predicate<Method> withParametersAssignableFrom(final Class... types) {
         return new Predicate<Method>() {
             public boolean apply(@Nullable Method input) {
@@ -112,6 +178,7 @@ public abstract class ReflectionUtils {
         };
     }
 
+    /** when method parameter types count equal given {@code count} */
     public static Predicate<Method> withParametersCount(final int count) {
         return new Predicate<Method>() {
             public boolean apply(@Nullable Method input) {
@@ -120,6 +187,7 @@ public abstract class ReflectionUtils {
         };
     }
 
+    /** when field type equal given {@code type} */
     public static <T> Predicate<Field> withType(final Class<T> type) {
         return new Predicate<Field>() {
             public boolean apply(@Nullable Field input) {
@@ -128,6 +196,7 @@ public abstract class ReflectionUtils {
         };
     }
 
+    /** when field type assignable from given {@code type} */
     public static <T> Predicate<Field> withTypeAssignableFrom(final Class<T> type) {
         return new Predicate<Field>() {
             public boolean apply(@Nullable Field input) {
@@ -136,6 +205,7 @@ public abstract class ReflectionUtils {
         };
     }
 
+    /** when method return type equal given {@code type} */
     public static <T> Predicate<Method> withReturnType(final Class<T> type) {
         return new Predicate<Method>() {
             public boolean apply(@Nullable Method input) {
@@ -144,6 +214,7 @@ public abstract class ReflectionUtils {
         };
     }
 
+    /** when method return type assignable from given {@code type} */
     public static <T> Predicate<Method> withReturnTypeAssignableFrom(final Class<T> type) {
         return new Predicate<Method>() {
             public boolean apply(@Nullable Method input) {
@@ -152,6 +223,13 @@ public abstract class ReflectionUtils {
         };
     }
 
+    /** when member modifier matches given {@code mod}
+     * <p>for example:
+     * <pre>
+     * withModifier(Modifier.PUBLIC)
+     * withModifier(Modifier.PROTECTED | Modifier.PUBLIC)
+     * </pre>
+     */
     public static <T extends Member> Predicate<T> withModifier(final int mod) {
         return new Predicate<T>() {
             public boolean apply(@Nullable T input) {

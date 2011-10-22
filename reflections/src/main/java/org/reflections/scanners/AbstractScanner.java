@@ -18,10 +18,6 @@ public abstract class AbstractScanner implements Scanner {
 	private Multimap<String, String> store;
 	private Predicate<String> resultFilter = Predicates.alwaysTrue(); //accept all by default
 
-    public String getName() {
-        return getClass().getName();
-    }
-
     public boolean acceptsInput(String file) {
         return file.endsWith(".class"); //is a class file
     }
