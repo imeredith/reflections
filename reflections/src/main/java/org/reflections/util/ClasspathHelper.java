@@ -3,7 +3,6 @@ package org.reflections.util;
 import com.google.common.collect.Sets;
 import org.reflections.Reflections;
 import org.reflections.vfs.Vfs;
-import sun.net.www.ParseUtil;
 
 import javax.servlet.ServletContext;
 import java.io.File;
@@ -22,34 +21,32 @@ import java.util.jar.Manifest;
  */
 public abstract class ClasspathHelper {
 
-    public static ClassLoader[] defaultClassLoaders = new ClassLoader[]{getContextClassLoader(), getStaticClassLoader()};
-
     /** returns {@code Thread.currentThread().getContextClassLoader()} */
-    public static ClassLoader getContextClassLoader() {
-        return Thread.currentThread().getContextClassLoader();
-    }
+    public static ClassLoader contextClassLoader() { return Thread.currentThread().getContextClassLoader(); }
 
     /** returns {@code Reflections.class.getClassLoader()} */
-    public static ClassLoader getStaticClassLoader() {
-        return Reflections.class.getClassLoader();
-    }
+    public static ClassLoader staticClassLoader() { return Reflections.class.getClassLoader(); }
 
-    /** returns given classLoaders, if not null,
-     * otherwise defaults to both {@link #getContextClassLoader()} and {@link #getStaticClassLoader()} */
+    /** returns given classLoaders, if not null, otherwise defaults to both {@link #contextClassLoader()} and {@link #staticClassLoader()} */
     public static ClassLoader[] classLoaders(ClassLoader... classLoaders) {
-        return classLoaders != null && classLoaders.length != 0 ? classLoaders : defaultClassLoaders;
+        if (classLoaders != null && classLoaders.length != 0) {
+            return classLoaders;
+        } else {
+            ClassLoader contextClassLoader = contextClassLoader(), staticClassLoader = staticClassLoader();
+            return contextClassLoader != staticClassLoader ? new ClassLoader[]{contextClassLoader, staticClassLoader} : new ClassLoader[]{contextClassLoader};
+        }
     }
 
     /** returns urls with resources of package starting with given name, using {@link ClassLoader#getResources(String)}
      * <p>that is, forPackage("org.reflections") effectively returns urls from classpath with packages starting with {@code org.reflections}
-     * <p>if optional {@link ClassLoader}s are not specified, then both {@link #getContextClassLoader()} and {@link #getStaticClassLoader()} are used for {@link ClassLoader#getResources(String)}
+     * <p>if optional {@link ClassLoader}s are not specified, then both {@link #contextClassLoader()} and {@link #staticClassLoader()} are used for {@link ClassLoader#getResources(String)}
      */
     public static Set<URL> forPackage(String name, ClassLoader... classLoaders) {
         final Set<URL> result = Sets.newHashSet();
 
         final ClassLoader[] loaders = classLoaders(classLoaders);
         final String resourceName = name.replace(".", "/");
-        String encodedResourceName = ParseUtil.encodePath(resourceName);
+        String encodedResourceName = Utils.encodePath(resourceName, true);
 
         for (ClassLoader classLoader : loaders) {
             try {
@@ -70,7 +67,7 @@ public abstract class ClasspathHelper {
     }
 
     /** returns the url that contains the given class, using {@link ClassLoader#getResource(String)}
-     * <p>if optional {@link ClassLoader}s are not specified, then either {@link #getContextClassLoader()} or {@link #getStaticClassLoader()} are used for {@link ClassLoader#getResources(String)}
+     * <p>if optional {@link ClassLoader}s are not specified, then either {@link #contextClassLoader()} or {@link #staticClassLoader()} are used for {@link ClassLoader#getResources(String)}
      * */
     public static URL forClass(Class<?> aClass, ClassLoader... classLoaders) {
         final ClassLoader[] loaders = classLoaders(classLoaders);
@@ -92,7 +89,7 @@ public abstract class ClasspathHelper {
     }
     
     /** returns urls using {@link java.net.URLClassLoader#getURLs()} up the classloader parent hierarchy
-     * <p>if optional {@link ClassLoader}s are not specified, then both {@link #getContextClassLoader()} and {@link #getStaticClassLoader()} are used for {@link ClassLoader#getResources(String)}
+     * <p>if optional {@link ClassLoader}s are not specified, then both {@link #contextClassLoader()} and {@link #staticClassLoader()} are used for {@link ClassLoader#getResources(String)}
      * */
     public static Set<URL> forClassLoader(ClassLoader... classLoaders) {
         final Set<URL> result = Sets.newHashSet();
@@ -145,8 +142,13 @@ public abstract class ClasspathHelper {
     public static URL forWebInfClasses(final ServletContext servletContext) {
         try {
             final String path = servletContext.getRealPath("/WEB-INF/classes");
-            final File file = new File(path);
-            if (file.exists()) return file.toURL();
+            if (path != null) {
+                final File file = new File(path);
+                if (file.exists())
+                    return file.toURL();
+            } else {
+                return servletContext.getResource("/WEB-INF/classes");
+            }
         }
         catch (MalformedURLException e) { /*fuck off*/ }
 

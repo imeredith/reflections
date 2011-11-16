@@ -32,7 +32,7 @@ import java.util.*;
  * */
 public abstract class ReflectionUtils {
 
-    //primitive parallel arrays
+    //primitive parallel arrays //todo lazy static init
     public final static List<String> primitiveNames = Lists.newArrayList("boolean", "char", "byte", "short", "int", "long", "float", "double", "void");
     @SuppressWarnings({"unchecked"}) public final static List<Class> primitiveTypes = Lists.<Class>newArrayList(boolean.class, char.class, byte.class, short.class, int.class, long.class, float.class, double.class, void.class);
     public final static List<String> primitiveDescriptors = Lists.newArrayList("Z", "C", "B", "S", "I", "J", "F", "D", "V");
@@ -272,7 +272,7 @@ public abstract class ReflectionUtils {
     }
 
     /** tries to resolve a java type name to a Class
-     * <p>if optional {@link ClassLoader}s are not specified, then both {@link org.reflections.util.ClasspathHelper#getContextClassLoader()} and {@link org.reflections.util.ClasspathHelper#getStaticClassLoader()} are used
+     * <p>if optional {@link ClassLoader}s are not specified, then both {@link org.reflections.util.ClasspathHelper#contextClassLoader()} and {@link org.reflections.util.ClasspathHelper#staticClassLoader()} are used
      * */
     public static Class<?> forName(String typeName, ClassLoader... classLoaders) {
         if (primitiveNames.contains(typeName)) {

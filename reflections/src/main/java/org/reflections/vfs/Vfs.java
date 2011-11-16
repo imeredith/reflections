@@ -9,9 +9,7 @@ import org.reflections.util.Utils;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.net.URLDecoder;
+import java.net.*;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -151,7 +149,7 @@ public abstract class Vfs {
      * */
     public static enum DefaultUrlTypes implements UrlType {
         jarfile {
-            public boolean matches(URL url) {return url.getProtocol().equals("file") && url.toExternalForm().endsWith(".jar");}
+            public boolean matches(URL url) {return url.getProtocol().equals("file") && url.toExternalForm().contains(".jar");}
             public Dir createDir(final URL url) {return new ZipDir(url);}},
 
         jarUrl {
@@ -163,12 +161,12 @@ public abstract class Vfs {
             public Dir createDir(final URL url) {return new SystemDir(url);}},
 
         vfsfile {
-            public boolean matches(URL url) {return url.getProtocol().equals("vfsfile") && url.toExternalForm().endsWith(".jar");}
+            public boolean matches(URL url) {return url.getProtocol().contains("vfs") && url.toExternalForm().contains(".jar");}
             public Dir createDir(URL url) {return new ZipDir(url);}},
 
-        vfszip {
-            public boolean matches(URL url) {return url.getProtocol().equals("vfszip") && url.toExternalForm().endsWith(".jar");}
-            public Dir createDir(URL url) {return new ZipDir(url);}}
+        vfsdir {
+            public boolean matches(URL url) {return url.getProtocol().contains("vfs") && !url.toExternalForm().contains(".jar");}
+            public Dir createDir(URL url) {return new SystemDir(url);}}
     }
 
     //

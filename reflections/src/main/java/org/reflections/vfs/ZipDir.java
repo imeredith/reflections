@@ -17,11 +17,7 @@ public class ZipDir implements Vfs.Dir {
     private String path;
 
     public ZipDir(URL url) {
-        path = url.getPath();
-        try { path = URLDecoder.decode(path, "UTF-8"); } catch (UnsupportedEncodingException e) { /**/ }
-        if (path.startsWith("jar:")) { path = path.substring("jar:".length()); }
-        if (path.startsWith("file:")) { path = path.substring("file:".length()); }
-        if (path.endsWith("!/")) { path = path.substring(0, path.lastIndexOf("!/")) + "/"; }
+        path = Vfs.normalizePath(url);
 
         try { zipFile = new java.util.zip.ZipFile(this.path); }
         catch (IOException e) {throw new RuntimeException(e);}
