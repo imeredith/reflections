@@ -12,7 +12,6 @@
     <modules>
         <module>reflections</module>
         <module>reflections-maven</module>
-        <module>helloworld</module>
     </modules>
 
     <licenses>

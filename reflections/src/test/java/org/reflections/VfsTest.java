@@ -2,6 +2,7 @@ package org.reflections;
 
 import com.google.common.base.Predicates;
 import com.google.common.io.Files;
+import org.apache.commons.io.FileUtils;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -46,7 +47,7 @@ public class VfsTest {
             testVfsDir(new File(dir2, from.getName()).toURL());
             testVfsDir(new URL("jar", "", "file:" + to.getAbsolutePath() + "!/"));
         } finally {
-            Files.deleteRecursively(dir1);
+            FileUtils.deleteDirectory(dir1);
         }
     }
 
